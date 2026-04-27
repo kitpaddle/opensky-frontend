@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.088778,59.237861]},"properties":{"name":"ABENI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[16.650321,59.586214]},"properties":{"name":"ARS","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.707639,59.422278]},"properties":{"name":"BABAP","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.306171,59.116092]},"properties":{"name":"DIGLI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.495167,58.987667]},"properties":{"name":"GALNU","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.582838,59.612304]},"properties":{"name":"HAPZI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.502306,58.937917]},"properties":{"name":"INWIQ","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.229611,60.081111]},"properties":{"name":"KOGAV","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.008556,60.317722]},"properties":{"name":"LUMAX","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.611239,59.430931]},"properties":{"name":"MENGA","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.258111,59.072778]},"properties":{"name":"NOSLI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.012083,59.207167]},"properties":{"name":"PETEV","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.024833,60.366944]},"properties":{"name":"RESNA","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[16.748667,59.584417]},"properties":{"name":"ROKNI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.305139,60.048528]},"properties":{"name":"TALEK","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.766833,59.749806]},"properties":{"name":"TOVRI","procedure_type":"SID"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[16.989917,59.824444]},"properties":{"name":"ELTOK","procedure_type":"STAR"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[17.884722,58.815833]},"properties":{"name":"NILUG","procedure_type":"STAR"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[18.391556,60.279222]},"properties":{"name":"VACRA","procedure_type":"STAR"}},
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[19.076056,59.659306]},"properties":{"name":"XILAN","procedure_type":"STAR"}}
+  ]
+}

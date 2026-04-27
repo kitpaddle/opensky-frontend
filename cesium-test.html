@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cesium Test</title>
+  <script>
+    window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/';
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+    }
+    #cesium-container {
+      width: 100%;
+      height: calc(100% - 200px);
+    }
+    #status {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #222;
+      color: #0f0;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 200px;
+      overflow-y: auto;
+      border-bottom: 2px solid #555;
+      z-index: 1000;
+    }
+    .log-line { padding: 2px 0; }
+    .success { color: #4ade80; }
+    .error { color: #ef4444; }
+    .warning { color: #fbbf24; }
+    .info { color: #60a5fa; }
+    .timestamp { color: #888; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div id="cesium-container"></div>
+  <div id="status"></div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const cesiumContainer = document.getElementById('cesium-container');
+    
+    function addStatus(msg, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `log-line ${type}`;
+      const time = new Date().toLocaleTimeString();
+      line.innerHTML = `<span class="timestamp">[${time}]</span> ${msg}`;
+      statusEl.appendChild(line);
+      statusEl.scrollTop = statusEl.scrollHeight;
+      console.log(`[${type.toUpperCase()}]`, msg);
+    }
+
+    addStatus('Script started, checking Cesium...', 'info');
+
+    // Initial checks
+    if (typeof Cesium === 'undefined') {
+      addStatus('❌ FATAL: Cesium NOT loaded - window.Cesium is undefined!', 'error');
+    } else {
+      addStatus(`✓ Cesium loaded successfully`, 'success');
+      addStatus(`  Version: ${Cesium.VERSION || 'unknown'}`, 'info');
+      
+      const rect = cesiumContainer.getBoundingClientRect();
+      addStatus(`  Container: ${Math.round(rect.width)}×${Math.round(rect.height)}px`, 'info');
+      
+      if (rect.width <= 100 || rect.height <= 100) {
+        addStatus(`  ⚠ Container seems too small!`, 'warning');
+      }
+
+      // Disable Ion
+      Cesium.Ion.defaultAccessToken = '';
+      addStatus('  Ion token disabled', 'info');
+
+      // Actually create the viewer
+      setTimeout(() => {
+        try {
+          addStatus('Creating Cesium Viewer...', 'info');
+          
+          // Create OSM imagery provider to avoid Ion auth errors
+          const osmProvider = new Cesium.UrlTemplateImageryProvider({
+            url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            credit: '© OpenStreetMap contributors',
+          });
+          
+          const viewer = new Cesium.Viewer(cesiumContainer, {
+            imageryProvider: osmProvider,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            infoBox: false,
+            sceneModePicker: false,
+            selectionIndicator: false,
+            timeline: false,
+            navigationHelpButton: false,
+            animation: false,
+            fullscreenButton: false,
+            vrButton: false,
+          });
+
+          addStatus('✓ Viewer created', 'success');
+          addStatus(`  Imagery layers count: ${viewer.imageryLayers.length}`, 'info');
+          
+          if (viewer.imageryLayers.length === 0) {
+            addStatus('⚠ No basemap loaded automatically, adding OSM...', 'warning');
+            try {
+              const osmProvider = new Cesium.UrlTemplateImageryProvider({
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                credit: '© OpenStreetMap contributors',
+              });
+              viewer.imageryLayers.addImageryProvider(osmProvider);
+              addStatus('✓ OSM basemap added', 'success');
+            } catch (osmErr) {
+              addStatus(`❌ Failed to add OSM: ${osmErr.message}`, 'error');
+            }
+          } else {
+            const layer = viewer.imageryLayers.get(0);
+            if (layer && layer.imageryProvider) {
+              const providerName = layer.imageryProvider.constructor.name;
+              addStatus(`  Base layer: ${providerName}`, 'success');
+            } else {
+              addStatus(`  Base layer exists but provider not directly accessible (Cesium default)`, 'info');
+            }
+          }
+
+          try {
+            viewer.camera.setView({
+              destination: Cesium.Cartesian3.fromDegrees(0, 0, 25000000),
+              orientation: {
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-90),
+                roll: 0,
+              }
+            });
+            addStatus('✓ Camera positioned', 'success');
+          } catch (camErr) {
+            addStatus(`⚠ Camera setup: ${camErr.message}`, 'warning');
+          }
+
+          addStatus('✅ SUCCESS: Cesium is fully functional!', 'success');
+          
+        } catch (error) {
+          addStatus(`❌ FAILED: ${error.message}`, 'error');
+          if (error.stack) {
+            const lines = error.stack.split('\n').slice(0, 3);
+            lines.forEach(line => addStatus(`  ${line.trim()}`, 'error'));
+          }
+        }
+      }, 100);
+    }
+
+    window.addEventListener('error', (event) => {
+      addStatus(`❌ Global Error: ${event.message}`, 'error');
+    });
+  </script>
+</body>
+</html>
