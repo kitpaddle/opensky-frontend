@@ -15,7 +15,7 @@
       <div class="tabs-date-controls">
         <input type="date" v-model="localDate"
           :min="minDate" :max="maxDate"
-          @change="$emit('update-date', localDate)"
+          @change="onDateChange"
           class="tabs-date-input"/>
         <button @click="onLoadClick"
           :disabled="dataLoading || !localDate || lastLoadedDate === localDate"
@@ -140,6 +140,14 @@ export default {
     const minDate = computed(() => availableDates.value.length ? availableDates.value[availableDates.value.length - 1] : '')
     const maxDate = computed(() => availableDates.value.length ? availableDates.value[0] : '')
 
+    const onDateChange = () => {
+      if (availableDates.value.includes(localDate.value)) {
+        emit('update-date', localDate.value)
+      } else {
+        localDate.value = props.date || availableDates.value[0] || ''
+      }
+    }
+
     const onLoadClick = () => {
       lastLoadedDate.value = localDate.value
       emit('load-data')
@@ -149,7 +157,7 @@ export default {
       filteredFlightIds.value = flightIds
     }
 
-    return { tabs, filteredFlightIds, onFilteredFlightsChanged, flightsView3D, localDate, lastLoadedDate, minDate, maxDate, onLoadClick }
+    return { tabs, filteredFlightIds, onFilteredFlightsChanged, flightsView3D, localDate, lastLoadedDate, minDate, maxDate, onLoadClick, onDateChange }
   }
 }
 </script>

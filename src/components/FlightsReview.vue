@@ -240,9 +240,14 @@ export default {
       const arr = [...filteredFlights.value]
       const key = sortKey.value
       const dir = sortDir.value
+      const jsonCols = ['city_crossings_json', 'norra_crossings_json']
       return arr.sort((a, b) => {
-        const av = a[key] ?? ''
-        const bv = b[key] ?? ''
+        let av = a[key] ?? ''
+        let bv = b[key] ?? ''
+        if (jsonCols.includes(key)) {
+          av = cntJson(av)
+          bv = cntJson(bv)
+        }
         if (av < bv) return -dir
         if (av > bv) return dir
         return 0

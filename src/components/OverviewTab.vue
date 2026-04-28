@@ -7,76 +7,83 @@
 
     <template v-else>
 
-      <!-- ── Header ─────────────────────────────────────────────── -->
-      <div class="ov-header">
-        <div class="range-info">
-          <span class="range-dates">{{ oldestDate }} → {{ newestDate }}</span>
-          <span class="range-total">Total of {{ available.length }} days of data</span>
-        </div>
-      </div>
+      <!-- ── Top: KPIs left, Runways right ────────────────────────── -->
+      <div class="top-section">
 
-      <!-- ── KPI Cards ───────────────────────────────────────────── -->
-      <div class="kpi-section">
-        <div v-for="c in kpiCards" :key="c.key"
-          class="kpi-card"
-          :style="{'--accent': c.color}"
-          @mouseenter="setHoverKpi(c)">
-          <div class="kpi-value">{{ fmtKpi(c.avg, c.precision) }}</div>
-          <div class="kpi-label">{{ c.label }}</div>
+        <!-- Left: KPI Cards -->
+        <div class="kpi-panel">
+          <div class="kpi-panel-title">
+            Average per day
+            <span class="kpi-panel-subtitle">({{ averages?.kpi?.day_count || 0 }} days · {{ totalEssaFlights.toLocaleString() }} ESSA flights)</span>
+          </div>
+          <div v-for="c in kpiCards" :key="c.key"
+            class="kpi-card"
+            :style="{'--accent': c.color}"
+            @mouseenter="setHoverKpi(c)">
+            <div class="kpi-value">{{ fmtKpi(c.avg, c.precision) }}</div>
+            <div class="kpi-label">{{ c.label }}</div>
+          </div>
         </div>
-      </div>
 
-      <!-- ── Runway Pair Cards ───────────────────────────────────── -->
-      <div class="runway-pairs-section">
-        <div v-for="pair in [['19R','01L'],['08','26'],['19L','01R']]" :key="pair[0]" class="runway-pair">
-          <div v-for="rwy in pair" :key="rwy"
-            :class="['pair-card', { 'pair-card-unused': rwyCount(rwy,'dep')===0 && rwyCount(rwy,'arr')===0 }]">
-            <div class="pair-rwy-name">{{ rwy }}</div>
-            <div class="pair-rwy-ops">
-              <!-- DEP -->
-              <div :class="['pair-section','dep-section',{ 'section-empty': rwyCount(rwy,'dep')===0 }]">
-                <div class="pair-count-side"
-                  @mouseenter="setHoverRwy(rwy,'dep','count')">
-                  <div class="pair-op-label">DEP</div>
-                  <div class="pair-count">{{ rwyCount(rwy,'dep') || '—' }}</div>
-                </div>
-                <div class="pair-stat-col"
-                  v-if="rwyCount(rwy,'dep') > 0"
-                  @mouseenter="setHoverRwy(rwy,'dep','occ')">
-                  <span class="pair-avg-label">OCC (s)</span>
-                  <span class="pair-avg-val">{{ rwyOcc(rwy,'dep') }}</span>
-                </div>
-                <div class="pair-stat-col"
-                  v-if="rwyTaxi(rwy,'dep') != null"
-                  @mouseenter="setHoverRwy(rwy,'dep','taxi')">
-                  <span class="pair-avg-label">TAXI (min)</span>
-                  <span class="pair-avg-val">{{ (rwyTaxi(rwy,'dep') / 60).toFixed(1) }}</span>
-                </div>
+        <!-- Right: Runway Cards (3 rows × 2) -->
+        <div class="runway-panel">
+          <div class="runway-panel-title">Runway Statistics</div>
+          <div v-for="pair in [['19R','01L'],['08','26'],['19L','01R']]" :key="pair[0]" class="runway-row">
+            <div v-for="rwy in pair" :key="rwy"
+              :class="['pair-card', { 'pair-card-unused': rwyCount(rwy,'dep')===0 && rwyCount(rwy,'arr')===0 }]">
+              <div class="pair-rwy-name">
+                {{ rwy }}
+                <span class="rwy-total-flights">({{ rwyTotalAll(rwy) }} flights)</span>
               </div>
-              <div class="pair-divider"></div>
-              <!-- ARR -->
-              <div :class="['pair-section','arr-section',{ 'section-empty': rwyCount(rwy,'arr')===0 }]">
-                <div class="pair-stat-col arr-stat-col"
-                  v-if="rwyTaxi(rwy,'arr') != null"
-                  @mouseenter="setHoverRwy(rwy,'arr','taxi')">
-                  <span class="pair-avg-label">TAXI (min)</span>
-                  <span class="pair-avg-val">{{ (rwyTaxi(rwy,'arr') / 60).toFixed(1) }}</span>
+              <div class="pair-rwy-ops">
+                <!-- DEP -->
+                <div :class="['pair-section','dep-section',{ 'section-empty': rwyCount(rwy,'dep')===0 }]">
+                  <div class="pair-op-label">DEP</div>
+                  <div class="pair-stats-block">
+                    <div class="op-flight-count">{{ rwyTotal(rwy,'dep') }} flights</div>
+                    <div class="pair-stats-row">
+                      <div class="pair-stat-col"
+                        v-if="rwyCount(rwy,'dep') > 0"
+                        @mouseenter="setHoverRwy(rwy,'dep','occ')">
+                        <span class="pair-avg-label">OCC (s)</span>
+                        <span class="pair-avg-val">{{ rwyOcc(rwy,'dep') }}</span>
+                      </div>
+                      <div class="pair-stat-col"
+                        v-if="rwyTaxi(rwy,'dep') != null"
+                        @mouseenter="setHoverRwy(rwy,'dep','taxi')">
+                        <span class="pair-avg-label">TAXI (min)</span>
+                        <span class="pair-avg-val">{{ (rwyTaxi(rwy,'dep') / 60).toFixed(1) }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="pair-stat-col arr-stat-col"
-                  v-if="rwyCount(rwy,'arr') > 0"
-                  @mouseenter="setHoverRwy(rwy,'arr','occ')">
-                  <span class="pair-avg-label">OCC (s)</span>
-                  <span class="pair-avg-val">{{ rwyOcc(rwy,'arr') }}</span>
-                </div>
-                <div class="pair-count-side arr-count-side"
-                  @mouseenter="setHoverRwy(rwy,'arr','count')">
-                  <div class="pair-op-label">ARR</div>
-                  <div class="pair-count">{{ rwyCount(rwy,'arr') || '—' }}</div>
+                <div class="pair-divider"></div>
+                <!-- ARR -->
+                <div :class="['pair-section','arr-section',{ 'section-empty': rwyCount(rwy,'arr')===0 }]">
+                  <div class="pair-stats-block">
+                    <div class="op-flight-count">{{ rwyTotal(rwy,'arr') }} flights</div>
+                    <div class="pair-stats-row">
+                      <div class="pair-stat-col arr-stat-col"
+                        v-if="rwyTaxi(rwy,'arr') != null"
+                        @mouseenter="setHoverRwy(rwy,'arr','taxi')">
+                        <span class="pair-avg-label">TAXI (min)</span>
+                        <span class="pair-avg-val">{{ (rwyTaxi(rwy,'arr') / 60).toFixed(1) }}</span>
+                      </div>
+                      <div class="pair-stat-col arr-stat-col"
+                        v-if="rwyCount(rwy,'arr') > 0"
+                        @mouseenter="setHoverRwy(rwy,'arr','occ')">
+                        <span class="pair-avg-label">OCC (s)</span>
+                        <span class="pair-avg-val">{{ rwyOcc(rwy,'arr') }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="pair-op-label arr-op-label">ARR</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
       </div>
 
       <!-- ── Hover Chart ─────────────────────────────────────────── -->
@@ -205,11 +212,11 @@ const kpiCards = computed(() => {
     { key: 'dep',   label: 'ESSA Dep',         color: '#2196F3', avg: k.essa_dep,      precision: 0, seriesKey: 'essa_departures' },
     { key: 'arr',   label: 'ESSA Arr',         color: '#FFC107', avg: k.essa_arr,      precision: 0, seriesKey: 'essa_arrivals' },
     { key: 'ctr',   label: 'CTR Flights',      color: '#9C27B0', avg: k.ctr_flights,   precision: 1, seriesKey: 'ctr_flights' },
-    { key: 'ga',    label: 'Go-Arounds',       color: '#FF9800', avg: k.goarounds,     precision: 1, seriesKey: 'goarounds' },
-    { key: 'dtax',  label: 'Avg Dep Taxi (min)',color: '#1565C0', avg: k.dep_taxi_min,  precision: 1, seriesKey: 'dep_taxi_min', unit: 'min' },
+    { key: 'dtax',  label: 'Avg Dep Taxi (min)',color: '#00BCD4', avg: k.dep_taxi_min,  precision: 1, seriesKey: 'dep_taxi_min', unit: 'min' },
     { key: 'atax',  label: 'Avg Arr Taxi (min)',color: '#00BCD4', avg: k.arr_taxi_min,  precision: 1, seriesKey: 'arr_taxi_min', unit: 'min' },
+    { key: 'ga',    label: 'Go-Arounds',       color: '#FF9800', avg: k.goarounds,     precision: 1, seriesKey: 'goarounds' },
     { key: 'wc',    label: 'Wait Count',       color: '#E91E63', avg: k.wait_count,    precision: 1, seriesKey: 'wait_count' },
-    { key: 'wm',    label: 'Wait Min',         color: '#C2185B', avg: k.wait_min,      precision: 1, seriesKey: 'wait_min', unit: 'min' },
+    { key: 'wm',    label: 'Wait Min',         color: '#E91E63', avg: k.wait_min,      precision: 1, seriesKey: 'wait_min', unit: 'min' },
     { key: 'veh',   label: 'Vehicles',         color: '#4CAF50', avg: k.vehicles,      precision: 0, seriesKey: 'total_essa_vehicle_flights' },
     { key: 'cross', label: 'Crossings',        color: '#4CAF50', avg: k.crossings,     precision: 1, seriesKey: 'crossings' },
   ]
@@ -243,6 +250,19 @@ function rwyOcc(rwy, op) {
 function rwyTaxi(rwy, op) {
   const e = getRwyEntry(rwy, op); return (e && e.avg_taxi_sec) ? e.avg_taxi_sec : null
 }
+function rwyTotal(rwy, op) {
+  const e = getRwyEntry(rwy, op)
+  return e ? (e.total_count || 0) : 0
+}
+function rwyTotalAll(rwy) {
+  return rwyTotal(rwy, 'dep') + rwyTotal(rwy, 'arr')
+}
+
+const totalEssaFlights = computed(() => {
+  const rwys = ['19R','01L','08','26','19L','01R']
+  return rwys.reduce((sum, rwy) => sum + rwyTotalAll(rwy), 0)
+})
+
 function getRwySeries(rwy, op, field) {
   return rangeData.value.map(d => {
     const opVal = opMap[op] || op
@@ -402,40 +422,75 @@ const chartXTicks = computed(() => {
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 
-/* ── KPI cards ── */
-.kpi-section {
-  display: grid;
-  grid-template-columns: repeat(11, 1fr);
-  gap: 0.6rem;
-}
-.kpi-card {
-  background: white;
-  border-radius: 8px;
-  padding: 0.85rem 0.75rem;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  border-left: 5px solid var(--accent, #666);
-  cursor: default;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0,0,0,0.13);
-}
-.kpi-value {
-  font-size: 1.4rem; font-weight: 700;
-  color: var(--accent, #333); margin-bottom: 0.25rem;
-}
-.kpi-label {
-  font-size: 0.65rem; color: #999; font-weight: 500;
-  text-transform: uppercase; letter-spacing: 0.4px;
+/* ── Top section: KPIs left, runways right ── */
+.top-section {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  min-height: 0;
 }
 
-/* ── Runway pairs (mirrors DataTab style) ── */
-.runway-pairs-section {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+/* ── KPI panel (left half) ── */
+.kpi-panel {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto;
+  gap: 0.5rem;
+  align-content: start;
 }
-.runway-pair { display: flex; flex-direction: column; gap: 0.5rem; }
+.kpi-card {
+  background: color-mix(in srgb, var(--accent, #888) 10%, white);
+  border-radius: 8px;
+  padding: 0.65rem 0.4rem 0.55rem;
+  text-align: center;
+  box-shadow: none;
+  border: none;
+  cursor: default;
+  transition: filter 0.15s;
+}
+.kpi-card:hover {
+  filter: brightness(0.95);
+}
+.kpi-value {
+  font-size: 1.45rem; font-weight: 800;
+  color: color-mix(in srgb, var(--accent, #888) 80%, #111);
+  margin-bottom: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-label {
+  font-size: 0.58rem; color: color-mix(in srgb, var(--accent, #888) 50%, #777);
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* ── Runway panel (right half) ── */
+.runway-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.runway-panel-title {
+  text-align: center;
+  font-size: 0.75rem; font-weight: 700; color: #888;
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.kpi-panel-title {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 0.75rem; font-weight: 700; color: #888;
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.kpi-panel-subtitle {
+  font-size: 0.68rem; font-weight: 400; color: #bbb;
+  text-transform: none; letter-spacing: 0;
+}
+.runway-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  align-items: start;
+}
 .pair-card {
   background: white; border: 1px solid #ddd;
   border-radius: 8px; overflow: hidden;
@@ -444,49 +499,54 @@ const chartXTicks = computed(() => {
 .pair-card-unused { opacity: 0.4; }
 .pair-rwy-name {
   font-size: 0.82rem; font-weight: 700; color: #444;
-  background: #f0f0f0; padding: 0.25rem 0.75rem;
-  border-bottom: 1px solid #ddd; letter-spacing: 0.5px; text-align: center;
+  background: #f0f0f0; padding: 0.2rem 0.75rem;
+  border-bottom: 1px solid #ddd; letter-spacing: 0.5px;
+  display: flex; align-items: center; justify-content: center; gap: 0.3rem;
 }
-.pair-rwy-ops { display: flex; flex-direction: row; min-height: 90px; }
+.pair-rwy-ops { display: flex; flex-direction: row; }
 .pair-section {
   flex: 1; display: flex; flex-direction: row;
-  align-items: stretch; padding: 0 0.55rem 0.5rem; gap: 0; min-width: 0;
+  align-items: center; padding: 0.2rem 0.15rem 0.4rem; gap: 0; min-width: 0;
+}
+.pair-stats-block {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 0; min-width: 0;
+}
+.op-flight-count {
+  font-size: 0.58rem; color: #aaa; font-weight: 500;
+  text-align: center; white-space: nowrap; line-height: 1;
+  margin-bottom: 0.1rem;
+}
+.pair-stats-row {
+  display: flex; flex-direction: row; width: 100%;
 }
 .dep-section { background: rgba(33,150,243,0.03); border-left: 3px solid #2196F3; }
 .arr-section { background: rgba(255,193,7,0.03); border-right: 3px solid #FFC107; }
 .section-empty { opacity: 0.3; }
 .pair-divider { width: 1px; background: #e8e8e8; flex-shrink: 0; align-self: stretch; }
-.pair-count-side {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-start; flex: 2; padding: 0 0.4rem;
-  border-right: 1px solid #eee; min-width: 0; cursor: default;
+.rwy-total-flights {
+  font-size: 0.62rem; font-weight: 400; color: #aaa; vertical-align: middle;
 }
-.pair-count-side:hover { background: rgba(0,0,0,0.02); }
-.arr-count-side { border-right: none; border-left: 1px solid #eee; }
 .pair-op-label {
-  font-size: 0.52rem; font-weight: 700; color: #bbb;
-  text-transform: uppercase; letter-spacing: 0.8px; padding-top: 0.35rem;
+  font-size: 0.5rem; font-weight: 700; color: #bbb;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  writing-mode: vertical-rl; text-orientation: mixed;
+  padding: 0 0.2rem;
 }
-.pair-count {
-  font-size: 1.9rem; font-weight: 700; color: #222; line-height: 1;
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
+.arr-op-label { transform: rotate(180deg); }
 .pair-stat-col {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-start; flex: 1.4; border-left: 1px solid #eee;
-  padding: 0 0.3rem; min-width: 0; cursor: default;
+  justify-content: center; flex: 1; border-left: 1px solid #eee;
+  padding: 0.1rem 0.25rem; min-width: 0; cursor: default;
 }
 .pair-stat-col:hover { background: rgba(0,0,0,0.02); }
 .arr-stat-col { border-left: none; border-right: 1px solid #eee; }
 .pair-avg-label {
-  font-size: 0.5rem; font-weight: 700; color: #bbb;
+  font-size: 0.48rem; font-weight: 700; color: #bbb;
   text-transform: uppercase; letter-spacing: 0.5px;
-  align-self: center; padding-top: 0.35rem;
 }
 .pair-avg-val {
-  font-size: 1.05rem; font-weight: 700; color: #333;
-  flex: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 1.35rem; font-weight: 700; color: #333;
 }
 
 /* ── Hover chart ── */
@@ -507,11 +567,13 @@ const chartXTicks = computed(() => {
 .chart-avg-tag { font-size: 0.75rem; opacity: 0.7; }
 .bar-chart { width: 100%; height: auto; display: block; }
 
-@media (max-width: 1200px) {
-  .kpi-section { grid-template-columns: repeat(6, 1fr); }
-  .runway-pairs-section { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+  .top-section { flex-direction: column; }
+  .kpi-panel { grid-template-columns: repeat(4, 1fr); }
+  .runway-panel { flex-direction: row; flex-wrap: wrap; }
+  .runway-row { flex: 0 0 auto; width: 100%; }
 }
-@media (max-width: 800px) {
-  .kpi-section { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 700px) {
+  .kpi-panel { grid-template-columns: repeat(3, 1fr); }
 }
 </style>
