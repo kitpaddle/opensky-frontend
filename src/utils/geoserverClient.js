@@ -2,7 +2,8 @@
  * GeoServer WFS client for fetching airspace data from LFV DAIM
  */
 
-const GEOSERVER_BASE_URL = "/api/proxy/daim"
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const GEOSERVER_BASE_URL = `${API_BASE}/api/proxy/daim`
 
 export const GeoserverClient = {
   /**
