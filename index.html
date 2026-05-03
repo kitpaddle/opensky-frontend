@@ -8,13 +8,13 @@
     <!-- Configure Cesium assets from CDN -->
     <script>
       // Point Cesium to CDN assets since we're loading from CDN
-      window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/';
+      window.CESIUM_BASE_URL = 'https://lfv-analyzer.se/cesium/';
       if (typeof window !== 'undefined') {
         window.CESIUM_ION_CONFIGURED = false;
       }
     </script>
     <!-- Cesium from jsDelivr CDN (more reliable) -->
-    <script src="https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/Cesium.js"></script>
+    <script src="https://lfv-analyzer.se/cesium/Cesium.js"></script>
     <script>
       // Disable Ion authentication immediately after Cesium loads to prevent 401 errors
       if (window.Cesium) {
@@ -32,7 +32,7 @@
         console.error('[HTML Init] ❌ Cesium failed to load!')
       }
     </script>
-    <link href="https://cdn.jsdelivr.net/npm/cesium@1.104.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link href="https://lfv-analyzer.se/cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
       * {
         margin: 0;
