@@ -119,6 +119,15 @@
         </div>
 
         <div class="control-section">
+          <label>Track Fade</label>
+          <div class="speed-buttons">
+            <button @click="fadeDuration = null" :class="['speed-btn', { active: fadeDuration === null }]">Unlimited</button>
+            <button @click="fadeDuration = 600"  :class="['speed-btn', { active: fadeDuration === 600 }]">10 min</button>
+            <button @click="fadeDuration = 60"   :class="['speed-btn', { active: fadeDuration === 60 }]">1 min</button>
+          </div>
+        </div>
+
+        <div class="control-section">
           <label>3D Flights ({{ displayedFlights.length }}/{{ filteredFlightCount }}, max 50)</label>
         </div>
 
@@ -173,6 +182,7 @@ export default {
     // Airspace volume toggles
     const showCTR = ref(false)
     const showR16 = ref(false)
+    const fadeDuration = ref(600) // seconds: 600=10min, 60=1min, null=unlimited
     const { airspaceData, fetchEssaCtr, fetchR16 } = useAirspaceData()
     const volumeEntities = { ctr: [], r16: [] }  // Cesium entity refs
 
@@ -688,9 +698,11 @@ export default {
               material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => {
                 const t = getT()
                 if (t <= lastPointTime) return colorDim
+                const fd = fadeDuration.value
+                if (fd === null) return colorDim
                 const elapsed = t - lastPointTime
-                if (elapsed >= 600) return Cesium.Color.TRANSPARENT
-                const alpha = Math.round(80 * (1 - elapsed / 600))
+                if (elapsed >= fd) return Cesium.Color.TRANSPARENT
+                const alpha = Math.round(80 * (1 - elapsed / fd))
                 return Cesium.Color.fromBytes(cat.r, cat.g, cat.b, alpha)
               }, false)),
               clampToGround: false,
@@ -949,6 +961,7 @@ export default {
       playbackSpeed,
       showCTR,
       showR16,
+      fadeDuration,
       formatTime,
       getFlightColor,
       onTimeSliderChange,
