@@ -214,11 +214,12 @@ const kpiCards = computed(() => {
     { key: 'ctr',   label: 'CTR Flights',      color: '#9C27B0', avg: k.ctr_flights,   precision: 1, seriesKey: 'ctr_flights' },
     { key: 'dtax',  label: 'Avg Dep Taxi (min)',color: '#00BCD4', avg: k.dep_taxi_min,  precision: 1, seriesKey: 'dep_taxi_min', unit: 'min' },
     { key: 'atax',  label: 'Avg Arr Taxi (min)',color: '#00BCD4', avg: k.arr_taxi_min,  precision: 1, seriesKey: 'arr_taxi_min', unit: 'min' },
-    { key: 'ga',    label: 'Go-Arounds',       color: '#FF9800', avg: k.goarounds,     precision: 1, seriesKey: 'goarounds' },
-    { key: 'wc',    label: 'Wait Count',       color: '#E91E63', avg: k.wait_count,    precision: 1, seriesKey: 'wait_count' },
-    { key: 'wm',    label: 'Wait Min',         color: '#E91E63', avg: k.wait_min,      precision: 1, seriesKey: 'wait_min', unit: 'min' },
-    { key: 'veh',   label: 'Vehicles',         color: '#4CAF50', avg: k.vehicles,      precision: 0, seriesKey: 'total_essa_vehicle_flights' },
-    { key: 'cross', label: 'Crossings',        color: '#4CAF50', avg: k.crossings,     precision: 1, seriesKey: 'crossings' },
+    { key: 'ga',    label: 'Go-Arounds',       color: '#FF9800', avg: k.goarounds,          precision: 1, seriesKey: 'goarounds' },
+    { key: 'wc',    label: 'Wait Count',       color: '#E91E63', avg: k.wait_count,         precision: 1, seriesKey: 'wait_count' },
+    { key: 'wm',    label: 'Wait Min',         color: '#E91E63', avg: k.wait_min,           precision: 1, seriesKey: 'wait_min', unit: 'min' },
+    { key: 'atma',  label: 'ARR Avg TM (NM)',  color: '#00897B', avg: k.avg_arr_tma_track_nm, precision: 1, seriesKey: 'avg_arr_tma_track_nm', unit: 'NM' },
+    { key: 'veh',   label: 'Vehicles',         color: '#4CAF50', avg: k.vehicles,           precision: 0, seriesKey: 'total_essa_vehicle_flights' },
+    { key: 'cross', label: 'Crossings',        color: '#4CAF50', avg: k.crossings,          precision: 1, seriesKey: 'crossings' },
   ]
 })
 
@@ -231,6 +232,7 @@ function getKpiSeries(seriesKey) {
       case 'wait_count':   return d.arr_taxi_wait_count || 0
       case 'wait_min':     return d.arr_taxi_wait_total_sec ? d.arr_taxi_wait_total_sec / 60 : null
       case 'crossings':    return (d.total_city_crossings || 0) + (d.total_norra_crossings || 0)
+      case 'avg_arr_tma_track_nm': return d.avg_arr_tma_track_nm || 0
       default:             return d[seriesKey] || 0
     }
   })

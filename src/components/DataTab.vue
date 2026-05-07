@@ -23,6 +23,10 @@
           <div class="kpi-value">{{ statistics.metadata.goarounds }}</div>
           <div class="kpi-label">Go-arounds</div>
         </div>
+        <div class="kpi-card" style="--accent-color: #00897B">
+          <div class="kpi-value">{{ (statistics.metadata.avg_arr_tma_track_nm || 0).toFixed(1) }}</div>
+          <div class="kpi-label">ARR Avg TM (NM)</div>
+        </div>
         <div class="kpi-card" style="--accent-color: #1565C0">
           <div class="kpi-value">{{ (statistics.metadata.avg_dep_taxi_time_sec / 60).toFixed(1) }}</div>
           <div class="kpi-label">Avg Dep Taxi (min)</div>
@@ -183,6 +187,10 @@
               <tr class="metric-row arr-taxi-row" @mouseenter="setHoveredMetric('Avg Arr Taxi', statistics.hourly.map(h => parseFloat((h.avg_arr_taxi_time_sec / 60).toFixed(1))), '#00BCD4', true, true)">
                 <td class="metric-label">Avg Arr Taxi</td>
                 <td v-for="(hour, idx) in statistics.hourly" :key="`arr-taxi-${idx}`" class="data-cell">{{ (hour.avg_arr_taxi_time_sec / 60).toFixed(1) }}</td>
+              </tr>
+              <tr class="metric-row arr-tma-row" @mouseenter="setHoveredMetric('Avg Arr TM (NM)', statistics.hourly.map(h => parseFloat((h.avg_arr_tma_track_nm || 0).toFixed(1))), '#00897B', true, true)">
+                <td class="metric-label">Avg Arr TM (NM)</td>
+                <td v-for="(hour, idx) in statistics.hourly" :key="`arr-tma-${idx}`" class="data-cell">{{ (hour.avg_arr_tma_track_nm || 0).toFixed(1) }}</td>
               </tr>
               <tr v-for="runway in allRunways" :key="`runway-row-${runway}`" class="metric-row runway-row">
                 <td class="metric-label">{{ runway }}</td>
@@ -407,7 +415,7 @@ export default {
 /* ===== KPI SECTION (full width) ===== */
 .kpi-section {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -1186,7 +1194,7 @@ export default {
 
 @media (max-width: 1200px) {
   .kpi-section {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
