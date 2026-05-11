@@ -174,9 +174,7 @@ onMounted(async () => {
     if (!localDate.value) localDate.value = newestDate.value
 
     const latest = available.value[0]
-    const to   = new Date(latest + 'T12:00:00Z')
-    const from = new Date(to); from.setUTCDate(from.getUTCDate() - 27)
-    const dateFrom = from.toISOString().slice(0, 10)
+    const dateFrom = oldestDate.value
 
     const [rangeRes, avgRes] = await Promise.all([
       axios.get(`/api/days/stats/range?date_from=${dateFrom}&date_to=${latest}`),
