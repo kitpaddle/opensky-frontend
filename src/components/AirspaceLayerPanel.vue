@@ -95,6 +95,31 @@
         </div>
       </div>
 
+      <!-- DEP Markers -->
+      <div class="layer-group">
+        <div class="group-header">
+          <input
+            type="checkbox"
+            :checked="layers.depTakeoff.visible || layers.dep2500ft.visible"
+            @change="toggleAllDepMarkers"
+            class="group-checkbox"
+          />
+          <span class="group-title" @click="depMarkersExpanded = !depMarkersExpanded">
+            {{ depMarkersExpanded ? '▼' : '▶' }} DEP Markers
+          </span>
+        </div>
+        <div v-if="depMarkersExpanded" class="group-content">
+          <label class="zone-checkbox">
+            <input type="checkbox" v-model="layers.depTakeoff.visible" @change="updateDepMarker('dep-takeoff')" />
+            T/O Position
+          </label>
+          <label class="zone-checkbox">
+            <input type="checkbox" v-model="layers.dep2500ft.visible" @change="updateDepMarker('dep-2500ft')" />
+            2500ft
+          </label>
+        </div>
+      </div>
+
       <!-- SID / STAR -->
       <div class="layer-group">
         <div class="group-header">
@@ -140,6 +165,7 @@ export default {
   setup(props, { emit }) {
     const isExpanded = ref(true)
     const rasExpanded = ref(false)
+    const depMarkersExpanded = ref(false)
     const sidstarExpanded = ref(false)
     const selectedBasemap = ref('black')
 
@@ -149,6 +175,8 @@ export default {
       },
       tma: { visible: false },
       r16: { visible: false },
+      depTakeoff: { visible: false },
+      dep2500ft: { visible: false },
       sid: { visible: false },
       star: { visible: false },
     })
@@ -159,6 +187,19 @@ export default {
 
     const updateSimpleLayer = (type) => {
       emit('layer-change', { type, data: layers.value[type] })
+    }
+
+    const toggleAllDepMarkers = (event) => {
+      const isChecked = event.target.checked
+      layers.value.depTakeoff.visible = isChecked
+      layers.value.dep2500ft.visible = isChecked
+      emit('layer-change', { type: 'dep-takeoff', data: layers.value.depTakeoff })
+      emit('layer-change', { type: 'dep-2500ft', data: layers.value.dep2500ft })
+    }
+
+    const updateDepMarker = (subtype) => {
+      const layerKey = subtype === 'dep-takeoff' ? 'depTakeoff' : 'dep2500ft'
+      emit('layer-change', { type: subtype, data: layers.value[layerKey] })
     }
 
     const toggleAllSIDSTAR = (event) => {
@@ -176,11 +217,14 @@ export default {
     return {
       isExpanded,
       rasExpanded,
+      depMarkersExpanded,
       sidstarExpanded,
       selectedBasemap,
       layers,
       updateLayer,
       updateSimpleLayer,
+      toggleAllDepMarkers,
+      updateDepMarker,
       toggleAllSIDSTAR,
       updateBasemap,
     }

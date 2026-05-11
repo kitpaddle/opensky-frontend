@@ -3,7 +3,7 @@
     <!-- TABLE SECTION -->
     <div class="review-section">
       <div class="section-header">
-        <span class="flight-count">{{ sortedFlights.length }} / {{ flights.length }} flights</span>
+        <span class="flight-count">{{ sortedFlights.length }} / {{ flights.length }} tracks</span>
         <div class="filter-checks">
           <label class="fcheck dep"><input type="checkbox" v-model="filters.dep" /> ESSA DEP</label>
           <label class="fcheck arr"><input type="checkbox" v-model="filters.arr" /> ESSA ARR</label>
@@ -166,8 +166,8 @@ import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
 import Feature from 'ol/Feature'
-import { LineString } from 'ol/geom'
-import { Style, Stroke } from 'ol/style'
+import { LineString, Point } from 'ol/geom'
+import { Style, Stroke, Circle as CircleStyle, Fill, Text, RegularShape } from 'ol/style'
 import { fromLonLat } from 'ol/proj'
 
 // SVG chart dimensions
@@ -339,6 +339,57 @@ export default {
         stroke: new Stroke({ color: mapTrackColor(flight), width: 2.5, lineCap: 'round', lineJoin: 'round' }),
       }))
       trackSource.addFeature(feature)
+
+      // DEP markers: T/O crosshair + 2500ft circle
+      if (flight.is_essa_dep) {
+        // T/O crosshair at actual takeoff position
+        if (flight.actual_takeoff_lat && flight.actual_takeoff_lon) {
+          const toFeat = new Feature({ geometry: new Point(fromLonLat([flight.actual_takeoff_lon, flight.actual_takeoff_lat])) })
+          toFeat.setStyle(new Style({
+            image: new RegularShape({
+              points: 4, radius: 7, radius2: 0, angle: 0,
+              stroke: new Stroke({ color: '#2196F3', width: 2 }),
+            }),
+            text: new Text({
+              text: 'T/O', offsetX: 12, offsetY: -8,
+              font: 'bold 10px sans-serif',
+              fill: new Fill({ color: '#2196F3' }),
+              backgroundFill: new Fill({ color: 'rgba(0,0,0,0.55)' }),
+              padding: [1, 3, 1, 3],
+            }),
+          }))
+          trackSource.addFeature(toFeat)
+        }
+
+        // 2500ft circle — first point >= 762m after takeoff
+        const ap = flight.altitude_profile
+        const coords = flight.coordinates
+        const tkTime = flight.actual_takeoff_time || flight.takeoff_time
+        if (ap && coords) {
+          for (let j = 0; j < coords.length; j++) {
+            if (tkTime && (ap[j * 2 + 1] ?? 0) < tkTime) continue
+            if ((ap[j * 2] ?? 0) >= 762) {
+              const ftFeat = new Feature({ geometry: new Point(fromLonLat(coords[j])) })
+              ftFeat.setStyle(new Style({
+                image: new CircleStyle({
+                  radius: 5,
+                  stroke: new Stroke({ color: '#FF9800', width: 2 }),
+                  fill: new Fill({ color: 'rgba(0,0,0,0)' }),
+                }),
+                text: new Text({
+                  text: '2500ft', offsetX: 14, offsetY: -8,
+                  font: 'bold 10px sans-serif',
+                  fill: new Fill({ color: '#FF9800' }),
+                  backgroundFill: new Fill({ color: 'rgba(0,0,0,0.55)' }),
+                  padding: [1, 3, 1, 3],
+                }),
+              }))
+              trackSource.addFeature(ftFeat)
+              break
+            }
+          }
+        }
+      }
 
       const view = olMap.getView()
       const ESSA = fromLonLat([17.932, 59.648])

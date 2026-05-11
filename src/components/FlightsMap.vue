@@ -39,8 +39,9 @@ import OSM from 'ol/source/OSM'
 import XYZ from 'ol/source/XYZ'
 import Feature from 'ol/Feature'
 import LineString from 'ol/geom/LineString'
+import Point from 'ol/geom/Point'
 import { fromLonLat } from 'ol/proj'
-import { Stroke, Style, Fill, Circle as CircleStyle, Text } from 'ol/style'
+import { Stroke, Style, Fill, Circle as CircleStyle, Text, RegularShape } from 'ol/style'
 import GeoJSON from 'ol/format/GeoJSON'
 import AirspaceLayerPanel from './AirspaceLayerPanel.vue'
 import { useAirspaceData } from '../composables/useAirspaceData.js'
@@ -306,6 +307,59 @@ export default {
       console.log('[FlightsMap] Update complete, rendered:', renderedTracks.value)
     }
 
+    const getVisibleFlights = () => {
+      if (!props.mergedFlights) return []
+      const hasFilter = props.filteredFlightIds !== undefined && props.filteredFlightIds !== null
+      if (!hasFilter) return props.mergedFlights
+      const ids = new Set(props.filteredFlightIds)
+      return props.mergedFlights.filter(f => ids.has(f.flight_id))
+    }
+
+    const buildDepTakeoffMarkers = () => {
+      const source = new VectorSource()
+      const style = new Style({
+        image: new RegularShape({
+          points: 4, radius: 7, radius2: 0, angle: Math.PI / 4,
+          stroke: new Stroke({ color: '#2196F3', width: 2 }),
+        }),
+      })
+      getVisibleFlights().forEach(flight => {
+        if (!flight.is_essa_dep || !flight.actual_takeoff_lat || !flight.actual_takeoff_lon) return
+        const feat = new Feature({ geometry: new Point(fromLonLat([flight.actual_takeoff_lon, flight.actual_takeoff_lat])) })
+        feat.setStyle(style)
+        source.addFeature(feat)
+      })
+      return source
+    }
+
+    const build2500ftMarkers = () => {
+      const source = new VectorSource()
+      const style = new Style({
+        image: new CircleStyle({
+          radius: 5,
+          stroke: new Stroke({ color: '#FF9800', width: 2 }),
+          fill: new Fill({ color: 'rgba(0,0,0,0)' }),
+        }),
+      })
+      getVisibleFlights().forEach(flight => {
+        if (!flight.is_essa_dep) return
+        const ap = flight.altitude_profile
+        const coords = flight.coordinates
+        if (!ap || !coords) return
+        const tkTime = flight.actual_takeoff_time || flight.takeoff_time
+        for (let j = 0; j < coords.length; j++) {
+          if (tkTime && (ap[j * 2 + 1] ?? 0) < tkTime) continue
+          if ((ap[j * 2] ?? 0) >= 762) {
+            const feat = new Feature({ geometry: new Point(fromLonLat(coords[j])) })
+            feat.setStyle(style)
+            source.addFeature(feat)
+            break
+          }
+        }
+      })
+      return source
+    }
+
     // Handle airspace layer visibility change
     const onLayerChange = async (event) => {
       const { type, airport, zone, data } = event
@@ -512,6 +566,18 @@ export default {
         } catch (error) {
           console.error('[FlightsMap] Error handling STAR:', error)
         }
+      } else if (type === 'dep-takeoff') {
+        if (!airspaceLayers.value.depTakeoff) {
+          airspaceLayers.value.depTakeoff = new VectorLayer({ source: buildDepTakeoffMarkers(), zIndex: 8 })
+          map.addLayer(airspaceLayers.value.depTakeoff)
+        }
+        airspaceLayers.value.depTakeoff.setVisible(data.visible)
+      } else if (type === 'dep-2500ft') {
+        if (!airspaceLayers.value.dep2500ft) {
+          airspaceLayers.value.dep2500ft = new VectorLayer({ source: build2500ftMarkers(), zIndex: 8 })
+          map.addLayer(airspaceLayers.value.dep2500ft)
+        }
+        airspaceLayers.value.dep2500ft.setVisible(data.visible)
       }
     }
 
@@ -646,6 +712,13 @@ export default {
     watch(() => props.mergedFlights, (newFlights) => {
       if (mapReady.value && newFlights && newFlights.length > 0) {
         createAllFeatures()
+        // Rebuild dep marker layers if they already exist (date change)
+        if (airspaceLayers.value.depTakeoff) {
+          airspaceLayers.value.depTakeoff.setSource(buildDepTakeoffMarkers())
+        }
+        if (airspaceLayers.value.dep2500ft) {
+          airspaceLayers.value.dep2500ft.setSource(build2500ftMarkers())
+        }
       }
     }, { deep: false })
 
@@ -661,6 +734,8 @@ export default {
       })
       if (mapReady.value && features.value.length > 0) {
         updateVisibleTracks()
+        if (airspaceLayers.value.depTakeoff) airspaceLayers.value.depTakeoff.setSource(buildDepTakeoffMarkers())
+        if (airspaceLayers.value.dep2500ft) airspaceLayers.value.dep2500ft.setSource(build2500ftMarkers())
       }
     }, { deep: true, immediate: false })
 
