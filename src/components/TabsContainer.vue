@@ -34,7 +34,7 @@
       </div>
 
       <!-- Overview Tab -->
-      <div v-show="activeTab === 'Overview'" class="tab-pane">
+      <div v-show="activeTab === 'Overview'" class="tab-pane tab-pane-padded">
         <OverviewTab
           :selectedDate="date"
           :dataLoading="dataLoading"
@@ -46,16 +46,6 @@
       <!-- Data Tab -->
       <div v-show="activeTab === 'Daily Stats'" class="tab-pane">
         <DataTab :statistics="statistics" />
-      </div>
-
-      <!-- Flights Selection Tab -->
-      <div v-show="activeTab === 'Flights Selection'" class="tab-pane">
-        <div v-if="dataLoading" class="loading-overlay">
-          <div class="loading-spinner"></div>
-          <p>Loading flight data...</p>
-        </div>
-        <FlightListColumns v-else-if="mergedFlights && mergedFlights.length > 0" :mergedFlights="mergedFlights" @filtered-flights-changed="onFilteredFlightsChanged" />
-        <div v-else class="placeholder">No flight data available</div>
       </div>
 
       <!-- Flights Map Tab -->
@@ -81,7 +71,7 @@
 
       <!-- Flights Review Tab -->
       <div v-show="activeTab === 'Flights Review'" class="tab-pane">
-        <FlightsReview :mergedFlights="mergedFlights" />
+        <FlightsReview :mergedFlights="mergedFlights" @filtered-flights-changed="onFilteredFlightsChanged" />
       </div>
     </div>
   </section>
@@ -92,7 +82,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import OverviewTab from './OverviewTab.vue'
 import DataTab from './DataTab.vue'
-import FlightListColumns from './FlightListColumns.vue'
 import FlightsMap from './FlightsMap.vue'
 import FlightsView3D from './FlightsView3D.vue'
 import FlightsReview from './FlightsReview.vue'
@@ -102,7 +91,6 @@ export default {
   components: {
     OverviewTab,
     DataTab,
-    FlightListColumns,
     FlightsMap,
     FlightsView3D,
     FlightsReview,
@@ -119,7 +107,7 @@ export default {
   },
   emits: ['switch-tab', 'update-date', 'load-data'],
   setup(props, { emit }) {
-    const tabs = ['Overview', 'Daily Stats', 'Flights Review', 'Flights Selection', 'Flights Map', '3D View']
+    const tabs = ['Overview', 'Daily Stats', 'Flights Review', 'Flights Map', '3D View']
 
     const filteredFlightIds = ref([])
     const flightsView3D = ref(null)
@@ -166,8 +154,6 @@ export default {
 .content-area {
   flex: 1;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -176,9 +162,10 @@ export default {
 .tabs-header {
   display: flex;
   align-items: center;
-  border-bottom: 2px solid #e0e0e0;
-  background: #fafafa;
+  background: #1e1e2e;
   flex-shrink: 0;
+  padding: 0 0.5rem;
+  gap: 0.1rem;
 }
 
 .tabs-date-controls {
@@ -186,26 +173,26 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0 0.75rem;
+  padding: 0.4rem 0.5rem;
 }
 
 .tabs-date-input {
-  padding: 0.3rem 0.45rem;
-  border: 1px solid #ddd;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid #3a3a55;
   border-radius: 4px;
-  font-size: 0.8rem;
-  color: #333;
-  background: white;
+  font-size: 0.78rem;
+  color: #ccc;
+  background: #2a2a3e;
 }
-.tabs-date-input:focus { outline: none; border-color: #667eea; }
+.tabs-date-input:focus { outline: none; border-color: #667eea; color: #fff; }
 
 .tabs-load-btn {
-  padding: 0.3rem 0.8rem;
+  padding: 0.25rem 0.75rem;
   background: #667eea;
   color: white;
   border: none;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -214,38 +201,41 @@ export default {
   white-space: nowrap;
   transition: background 0.2s;
 }
-.tabs-load-btn:hover:not(:disabled) { background: #5568d3; }
-.tabs-load-btn:disabled { background: #ccc; cursor: not-allowed; }
+.tabs-load-btn:hover:not(:disabled) { background: #7b8ff5; }
+.tabs-load-btn:disabled { background: #3a3a55; color: #666; cursor: not-allowed; }
 
 .tab-button {
-  padding: 0.75rem 1.25rem;
-  background: none;
+  padding: 0.55rem 1.1rem;
+  background: transparent;
   border: none;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 0.95rem;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
+  font-size: 0.8rem;
+  color: #888;
   font-weight: 500;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  transition: color 0.15s;
+  letter-spacing: 0.2px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -0px;
 }
 
 .tab-button:hover:not(:disabled) {
-  color: #333;
-  background: #f5f5f5;
+  color: #bbb;
 }
 
 .tab-button:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.35;
 }
 
 .tab-button.active {
-  color: #667eea;
+  color: #fff;
   border-bottom-color: #667eea;
+  font-weight: 600;
 }
 
 .tab-button.loading {
@@ -254,9 +244,9 @@ export default {
 
 .tab-spinner {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #f0f0f0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.2);
   border-top: 2px solid #667eea;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -270,12 +260,23 @@ export default {
 
 .tab-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .tab-pane {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-pane-padded {
+  flex: 1;
+  min-height: 0;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .loading-overlay {

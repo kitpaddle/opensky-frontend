@@ -984,7 +984,7 @@ export default {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  min-height: 100vh;
+  min-height: 0;
   position: relative;
 }
 

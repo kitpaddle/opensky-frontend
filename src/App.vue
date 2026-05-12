@@ -1,13 +1,5 @@
 <template>
   <div class="app">
-    <Header 
-      :selectedDate="selectedDate"
-      :loading="loading"
-      :error="!!error"
-      :dataLoaded="dataLoaded"
-      :trackTimings="trackTimings"
-    />
-
     <main class="app-main">
       <div v-if="error" class="error-message">
         {{ error }}
@@ -244,7 +236,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f0f2f5;
+  background: white;
 }
 
 /* HEADER */
@@ -368,8 +360,6 @@ export default {
 /* DASHBOARD LAYOUT */
 .dashboard-container {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem;
   flex: 1;
   overflow: hidden;
 }
@@ -434,8 +424,6 @@ export default {
 .content-area {
   flex: 1;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;

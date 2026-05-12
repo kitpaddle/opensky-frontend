@@ -1,12 +1,83 @@
 <template>
   <div class="flights-review">
+    <!-- Backdrop closes any open dropdown -->
+    <div v-if="activeDropdown" class="dropdown-backdrop" @click="activeDropdown = null"></div>
+
     <!-- TABLE SECTION -->
     <div class="review-section">
       <div class="section-header">
         <span class="flight-count">{{ sortedFlights.length }} / {{ flights.length }} tracks</span>
         <div class="filter-checks">
           <label class="fcheck dep"><input type="checkbox" v-model="filters.dep" /> ESSA DEP</label>
+
+          <!-- DEP RWY dropdown -->
+          <div class="filter-dropdown">
+            <button class="dropdown-btn dep" :disabled="!filters.dep" @click.stop="toggleDropdown('depRwy')">
+              {{ depRwyLabel }} ▾
+            </button>
+            <div v-if="activeDropdown === 'depRwy'" class="dropdown-menu" @click.stop>
+              <label v-for="rwy in availableDepRwys" :key="rwy" class="dropdown-item">
+                <input type="checkbox" :value="rwy" v-model="selectedDepRwys" /> {{ rwy }}
+              </label>
+              <div class="dropdown-actions">
+                <button @click="selectedDepRwys = [...availableDepRwys]">All</button>
+                <button @click="selectedDepRwys = []">None</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- DEP TYPE dropdown -->
+          <div class="filter-dropdown">
+            <button class="dropdown-btn dep" :disabled="!filters.dep" @click.stop="toggleDropdown('depType')">
+              {{ depTypeLabel }} ▾
+            </button>
+            <div v-if="activeDropdown === 'depType'" class="dropdown-menu" @click.stop>
+              <label v-for="t in availableDepTypes" :key="t" class="dropdown-item">
+                <input type="checkbox" :value="t" v-model="selectedDepTypes" /> {{ t }}
+              </label>
+              <div class="dropdown-actions">
+                <button @click="selectedDepTypes = [...availableDepTypes]">All</button>
+                <button @click="selectedDepTypes = []">None</button>
+              </div>
+            </div>
+          </div>
+
+          <span class="filter-sep">|</span>
           <label class="fcheck arr"><input type="checkbox" v-model="filters.arr" /> ESSA ARR</label>
+
+          <!-- ARR RWY dropdown -->
+          <div class="filter-dropdown">
+            <button class="dropdown-btn arr" :disabled="!filters.arr" @click.stop="toggleDropdown('arrRwy')">
+              {{ arrRwyLabel }} ▾
+            </button>
+            <div v-if="activeDropdown === 'arrRwy'" class="dropdown-menu" @click.stop>
+              <label v-for="rwy in availableArrRwys" :key="rwy" class="dropdown-item">
+                <input type="checkbox" :value="rwy" v-model="selectedArrRwys" /> {{ rwy }}
+              </label>
+              <div class="dropdown-actions">
+                <button @click="selectedArrRwys = [...availableArrRwys]">All</button>
+                <button @click="selectedArrRwys = []">None</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ARR TYPE dropdown -->
+          <div class="filter-dropdown">
+            <button class="dropdown-btn arr" :disabled="!filters.arr" @click.stop="toggleDropdown('arrType')">
+              {{ arrTypeLabel }} ▾
+            </button>
+            <div v-if="activeDropdown === 'arrType'" class="dropdown-menu" @click.stop>
+              <label v-for="t in availableArrTypes" :key="t" class="dropdown-item">
+                <input type="checkbox" :value="t" v-model="selectedArrTypes" /> {{ t }}
+              </label>
+              <div class="dropdown-actions">
+                <button @click="selectedArrTypes = [...availableArrTypes]">All</button>
+                <button @click="selectedArrTypes = []">None</button>
+              </div>
+            </div>
+          </div>
+
+          <span class="filter-sep">|</span>
           <label class="fcheck veh"><input type="checkbox" v-model="filters.veh" /> Vehicles</label>
           <label class="fcheck ctr"><input type="checkbox" v-model="filters.ctr" /> CTR</label>
           <label class="fcheck other"><input type="checkbox" v-model="filters.other" /> All Other</label>
@@ -16,6 +87,10 @@
         <table class="review-table">
           <thead>
             <tr>
+              <th class="col-map" @click.stop>
+                <input type="checkbox" :checked="mapAllChecked" @change="toggleAllMap" />
+                <span>MAP</span>
+              </th>
               <th @click="sortBy('callsign')" :class="{ sorted: sortKey === 'callsign' }">Callsign</th>
               <th @click="sortBy('ac_type')" :class="{ sorted: sortKey === 'ac_type' }">Type</th>
               <th @click="sortBy('start_time')" :class="{ sorted: sortKey === 'start_time' }">Start (UTC)</th>
@@ -51,6 +126,9 @@
               :class="[rowClass(f), { 'row-selected': selectedFlight && selectedFlight.flight_id === f.flight_id }]"
               @click="selectFlight(f)"
             >
+              <td class="col-map" @click.stop>
+                <input type="checkbox" :checked="mapSelected[f.flight_id]" @change="toggleMapSelected(f.flight_id, $event.target.checked)" />
+              </td>
               <td class="col-callsign">{{ f.callsign || '—' }}</td>
               <td class="col-type">{{ f.ac_type || '—' }}</td>
               <td class="col-time">{{ fmtTime(f.start_time) }}</td>
@@ -204,32 +282,143 @@ export default {
   props: {
     mergedFlights: { type: Array, default: () => [] },
   },
-  setup(props) {
+  emits: ['filtered-flights-changed'],
+  setup(props, { emit }) {
     const sortKey = ref('start_time')
     const sortDir = ref(1)
     const filters = ref({ dep: true, arr: true, veh: true, ctr: true, other: false })
     const selectedFlight = ref(null)
     const mapEl = ref(null)
 
+    // ── DROPDOWN FILTER STATE ──────────────────────────────────────────────────
+    const activeDropdown = ref(null)
+    const selectedDepRwys = ref([])
+    const selectedDepTypes = ref([])
+    const selectedArrRwys = ref([])
+    const selectedArrTypes = ref([])
+
+    // ── MAP SELECTION STATE ────────────────────────────────────────────────────
+    const mapSelected = ref({})
+
     let olMap = null
     let trackSource = null
 
     const flights = computed(() => props.mergedFlights || [])
 
+    // Available dropdown options for the current day's data
+    const availableDepRwys = computed(() =>
+      [...new Set(flights.value.filter(f => f.is_essa_dep && f.dep_rwy).map(f => f.dep_rwy))].sort()
+    )
+    const availableDepTypes = computed(() =>
+      [...new Set(flights.value.filter(f => f.is_essa_dep && f.ac_type).map(f => f.ac_type))].sort()
+    )
+    const availableArrRwys = computed(() =>
+      [...new Set(flights.value.filter(f => f.is_essa_arr && f.arr_rwy).map(f => f.arr_rwy))].sort()
+    )
+    const availableArrTypes = computed(() =>
+      [...new Set(flights.value.filter(f => f.is_essa_arr && f.ac_type).map(f => f.ac_type))].sort()
+    )
+
+    // Dropdown button labels
+    const dropdownLabel = (selected, available, name) => {
+      if (selected.length === 0 || selected.length === available.length) return name
+      return `${name}(${selected.length})`
+    }
+    const depRwyLabel = computed(() => dropdownLabel(selectedDepRwys.value, availableDepRwys.value, 'RWY'))
+    const depTypeLabel = computed(() => dropdownLabel(selectedDepTypes.value, availableDepTypes.value, 'TYPE'))
+    const arrRwyLabel = computed(() => dropdownLabel(selectedArrRwys.value, availableArrRwys.value, 'RWY'))
+    const arrTypeLabel = computed(() => dropdownLabel(selectedArrTypes.value, availableArrTypes.value, 'TYPE'))
+
+    const toggleDropdown = (name) => {
+      activeDropdown.value = activeDropdown.value === name ? null : name
+    }
+
+    // Init state when flights load or date changes
+    watch(() => props.mergedFlights, (newFlights) => {
+      if (!newFlights?.length) return
+      // Init MAP checkboxes: all selected except UNKNOWN-runway dep/arr (match existing default)
+      const sel = {}
+      newFlights.forEach(f => {
+        const unknownDep = f.is_essa_dep && f.dep_rwy === 'UNKNOWN'
+        const unknownArr = f.is_essa_arr && f.arr_rwy === 'UNKNOWN'
+        sel[f.flight_id] = !(unknownDep || unknownArr)
+      })
+      mapSelected.value = sel
+
+      // Init dropdown selections to all available values (UNKNOWN excluded by default)
+      selectedDepRwys.value = newFlights
+        .filter(f => f.is_essa_dep && f.dep_rwy && f.dep_rwy !== 'UNKNOWN')
+        .map(f => f.dep_rwy)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort()
+      selectedDepTypes.value = newFlights
+        .filter(f => f.is_essa_dep && f.ac_type)
+        .map(f => f.ac_type)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort()
+      selectedArrRwys.value = newFlights
+        .filter(f => f.is_essa_arr && f.arr_rwy && f.arr_rwy !== 'UNKNOWN')
+        .map(f => f.arr_rwy)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort()
+      selectedArrTypes.value = newFlights
+        .filter(f => f.is_essa_arr && f.ac_type)
+        .map(f => f.ac_type)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort()
+    }, { immediate: true })
+
     const isOther = (f) =>
       !f.is_essa_dep && !f.is_essa_arr && !f.is_essa_vehicle && !f.is_inctr
 
+    // filteredFlights: what's visible in the list (type toggles + dropdown filters)
     const filteredFlights = computed(() => {
       const f = filters.value
       return flights.value.filter(fl => {
         if (fl.is_essa_vehicle && f.veh) return true
-        if (fl.is_essa_dep    && f.dep) return true
-        if (fl.is_essa_arr    && f.arr) return true
-        if (fl.is_inctr       && f.ctr) return true
-        if (isOther(fl)       && f.other) return true
+        if (fl.is_essa_dep && f.dep) {
+          if (!selectedDepRwys.value.includes(fl.dep_rwy || '')) return false
+          if (fl.ac_type && !selectedDepTypes.value.includes(fl.ac_type)) return false
+          return true
+        }
+        if (fl.is_essa_arr && f.arr) {
+          if (!selectedArrRwys.value.includes(fl.arr_rwy || '')) return false
+          if (fl.ac_type && !selectedArrTypes.value.includes(fl.ac_type)) return false
+          return true
+        }
+        if (fl.is_inctr && f.ctr) return true
+        if (isOther(fl) && f.other) return true
         return false
       })
     })
+
+    // filteredForMap: visible + MAP-selected → drives what shows on Flights Map and 3D View
+    const filteredForMap = computed(() =>
+      filteredFlights.value
+        .filter(fl => mapSelected.value[fl.flight_id])
+        .map(fl => fl.flight_id)
+    )
+
+    watch(filteredForMap, (ids) => {
+      emit('filtered-flights-changed', ids)
+    }, { immediate: true })
+
+    // MAP header checkbox: true only when all visible flights are map-selected
+    const mapAllChecked = computed(() => {
+      if (!filteredFlights.value.length) return false
+      return filteredFlights.value.every(fl => mapSelected.value[fl.flight_id])
+    })
+
+    const toggleAllMap = (event) => {
+      const checked = event.target.checked
+      filteredFlights.value.forEach(fl => {
+        mapSelected.value[fl.flight_id] = checked
+      })
+    }
+
+    const toggleMapSelected = (flightId, checked) => {
+      mapSelected.value[flightId] = checked
+    }
 
     const sortBy = (key) => {
       if (sortKey.value === key) sortDir.value *= -1
@@ -342,7 +531,6 @@ export default {
 
       // DEP markers: T/O crosshair + 2500ft circle
       if (flight.is_essa_dep) {
-        // T/O crosshair at actual takeoff position
         if (flight.actual_takeoff_lat && flight.actual_takeoff_lon) {
           const toFeat = new Feature({ geometry: new Point(fromLonLat([flight.actual_takeoff_lon, flight.actual_takeoff_lat])) })
           toFeat.setStyle(new Style({
@@ -361,7 +549,6 @@ export default {
           trackSource.addFeature(toFeat)
         }
 
-        // 2500ft circle — first point >= 762m after takeoff
         const ap = flight.altitude_profile
         const coords = flight.coordinates
         const tkTime = flight.actual_takeoff_time || flight.takeoff_time
@@ -421,7 +608,7 @@ export default {
       if (ap.length < f.coordinates.length * 2) return null
       return f.coordinates.map((c, i) => ({
         lon: c[0], lat: c[1],
-        alt: (ap[i * 2] ?? 0) * 3.28084,  // stored in metres, display in feet
+        alt: (ap[i * 2] ?? 0) * 3.28084,
         time: ap[i * 2 + 1] ?? 0,
       }))
     }
@@ -520,6 +707,13 @@ export default {
       cntJson, xrwyCount, rowClass,
       selectedFlight, selectFlight, mapEl,
       svgChart, chartColor,
+      // dropdown
+      activeDropdown, toggleDropdown,
+      availableDepRwys, availableDepTypes, availableArrRwys, availableArrTypes,
+      selectedDepRwys, selectedDepTypes, selectedArrRwys, selectedArrTypes,
+      depRwyLabel, depTypeLabel, arrRwyLabel, arrTypeLabel,
+      // MAP selection
+      mapSelected, mapAllChecked, toggleAllMap, toggleMapSelected,
     }
   },
 }
@@ -541,7 +735,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 0.75rem 1rem 0.5rem;
+  padding: 0.75rem 0.75rem 0.5rem 0.75rem;
 }
 
 .section-header {
@@ -560,7 +754,7 @@ export default {
 
 .filter-checks {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.4rem;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -585,6 +779,94 @@ export default {
 .fcheck.veh { color: #2E7D32; border-color: rgba(76,175,80,.3); }
 .fcheck.ctr { color: #6A1B9A; border-color: rgba(156,39,176,.3); }
 .fcheck.other { color: #555; border-color: #ddd; }
+
+.filter-sep {
+  color: #ccc;
+  font-size: 1rem;
+  margin: 0 0.1rem;
+  user-select: none;
+}
+
+/* ── DROPDOWNS ────────────────────────────────────────────────────────────── */
+
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.filter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-btn {
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+  border: 1px solid;
+  background: #fafafa;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.dropdown-btn.dep { color: #1565C0; border-color: rgba(33,150,243,.3); }
+.dropdown-btn.arr { color: #E65100; border-color: rgba(255,193,7,.4); }
+.dropdown-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.dropdown-btn:not(:disabled):hover { background: #f0f0f0; }
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  min-width: 110px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.72rem;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover { background: #f5f5f5; }
+.dropdown-item input { cursor: pointer; }
+
+.dropdown-actions {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.dropdown-actions button {
+  flex: 1;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.65rem;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: #fafafa;
+  cursor: pointer;
+  color: #555;
+}
+
+.dropdown-actions button:hover { background: #eeeeee; }
+
+/* ── TABLE ────────────────────────────────────────────────────────────────── */
 
 .table-wrapper {
   flex: 1;
@@ -637,6 +919,23 @@ export default {
 .review-table tbody tr:hover { background: #f0f0f0 !important; }
 .row-selected { outline: 2px solid #2196F3; outline-offset: -1px; }
 .row-selected td { background: rgba(33, 150, 243, 0.08) !important; }
+
+.col-map {
+  text-align: center;
+  width: 48px;
+  min-width: 48px;
+  padding: 0.3rem 0.4rem !important;
+  cursor: default !important;
+}
+
+.col-map span {
+  display: block;
+  font-size: 0.6rem;
+  color: #aaa;
+  margin-top: 1px;
+}
+
+.col-map input { cursor: pointer; }
 
 .col-callsign { font-weight: 600; font-family: monospace; letter-spacing: 0.3px; }
 .col-type { color: #666; }

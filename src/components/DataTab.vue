@@ -390,7 +390,7 @@ export default {
 <style scoped>
 .data-tab {
   height: 100%;
-  padding: 0.75rem 1.5rem;
+  padding: 0;
   overflow-y: auto;
   background: #fafafa;
 }
@@ -401,6 +401,7 @@ export default {
   gap: 0rem;
   max-width: 1400px;
   margin: 0 auto;
+  padding: 0.75rem 1.5rem;
 }
 
 .no-data {
