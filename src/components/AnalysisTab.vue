@@ -196,44 +196,39 @@
           <span v-if="ctrSectionCount !== null" class="clf-count">{{ ctrSectionCount }}</span>
         </div>
         <div class="clf-body" :class="{ 'clf-body--off': !enabled.ctr }">
-          <!-- Helicopters parent -->
-          <div class="clf-row clf-row-check">
-            <label class="clf-check">
-              <input type="checkbox"
-                :checked="ctrHeliAll"
-                :indeterminate.prop="ctrHeliSome"
-                @change="toggleCtrHeli" />
-              Helicopters
-              <span v-if="options.ctr.breakdown" class="opt-count">
-                ({{ (options.ctr.breakdown.dfl ?? 0) + (options.ctr.breakdown.pol ?? 0) + (options.ctr.breakdown.heli_other ?? 0) }})
-              </span>
-            </label>
-          </div>
-          <!-- Heli sub-tree -->
-          <div class="clf-sub clf-sub-tree">
-            <label class="clf-check clf-check-sub">
-              <input type="checkbox" v-model="filters.ctrDfl" />
-              DFL
-              <span v-if="options.ctr.breakdown" class="opt-count">({{ options.ctr.breakdown.dfl ?? 0 }})</span>
-            </label>
-            <label class="clf-check clf-check-sub">
-              <input type="checkbox" v-model="filters.ctrPol" />
-              POL
-              <span v-if="options.ctr.breakdown" class="opt-count">({{ options.ctr.breakdown.pol ?? 0 }})</span>
-            </label>
-            <label class="clf-check clf-check-sub">
-              <input type="checkbox" v-model="filters.ctrHeliOther" />
-              Other
-              <span v-if="options.ctr.breakdown" class="opt-count">({{ options.ctr.breakdown.heli_other ?? 0 }})</span>
-            </label>
-          </div>
-          <!-- Non-helicopter CTR flights -->
-          <div class="clf-row clf-row-check">
-            <label class="clf-check">
-              <input type="checkbox" v-model="filters.ctrNonHeli" />
-              Other
-              <span v-if="options.ctr.breakdown" class="opt-count">({{ options.ctr.breakdown.non_heli ?? 0 }})</span>
-            </label>
+          <div class="clf-row">
+            <span class="clf-row-lbl">Aircraft</span>
+            <div class="filter-dropdown">
+              <button class="dropdown-btn" @click.stop="toggleDropdown('ctrAc')">
+                {{ dropLabel(filters.ctrAcTypes, options.ctr.acTypes, 'Type') }} ▾
+              </button>
+              <div v-if="activeDropdown === 'ctrAc'" class="dropdown-menu" @click.stop>
+                <template v-if="ctrHeliItems(options.ctr.acTypes).length">
+                  <label class="dropdown-item dropdown-group-header">
+                    <input type="checkbox"
+                      :checked="ctrHeliAllSelected(filters.ctrAcTypes, options.ctr.acTypes)"
+                      :indeterminate.prop="ctrHeliSomeSelected(filters.ctrAcTypes, options.ctr.acTypes)"
+                      @change="filters.ctrAcTypes = toggleCtrHeliGroup(filters.ctrAcTypes, options.ctr.acTypes)" />
+                    Helicopters <span class="opt-count">({{ ctrHeliCount(options.ctr.acTypes) }})</span>
+                  </label>
+                  <label v-for="t in ctrHeliItems(options.ctr.acTypes)" :key="t.value"
+                    class="dropdown-item dropdown-item-lf" :class="{ 'zero-count': t.count === 0 }">
+                    <input type="checkbox" :value="t.value" v-model="filters.ctrAcTypes" />
+                    {{ t.value }} <span class="opt-count">({{ t.count }})</span>
+                  </label>
+                  <div v-if="ctrNonHeliItems(options.ctr.acTypes).length" class="dropdown-separator"></div>
+                </template>
+                <label v-for="t in ctrNonHeliItems(options.ctr.acTypes)" :key="t.value"
+                  class="dropdown-item" :class="{ 'zero-count': t.count === 0 }">
+                  <input type="checkbox" :value="t.value" v-model="filters.ctrAcTypes" />
+                  {{ t.value }} <span class="opt-count">({{ t.count }})</span>
+                </label>
+                <div class="dropdown-actions">
+                  <button @click="filters.ctrAcTypes = vals(options.ctr.acTypes)">All</button>
+                  <button @click="filters.ctrAcTypes = []">None</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -345,7 +340,7 @@ export default {
     const options = ref({
       dep:   { acTypes: [], runways: [], sids: [] },
       arr:   { acTypes: [], runways: [], entryPoints: [] },
-      ctr:   { breakdown: null },
+      ctr:   { acTypes: [] },
       other: { acTypes: [] },
     })
 
@@ -356,7 +351,7 @@ export default {
       endDate:   '', endTime:   '23:59',
       depAcTypes: [], depRunways: [], depSids: [],
       arrAcTypes: [], arrRunways: [], arrEntryPoints: [],
-      ctrDfl: true, ctrPol: true, ctrHeliOther: true, ctrNonHeli: true,
+      ctrAcTypes: [],
       vehTowTruck: false, vehCityCrossing: false, vehNorraCrossing: false,
       otherAcTypes: [],
       script: '',
@@ -376,6 +371,19 @@ export default {
       return [...sel.filter(v => !lfVals.includes(v)), ...lfVals]
     }
 
+    // CTR helicopter grouping (based on is_heli flag from API)
+    const ctrHeliItems    = (optList) => optList.filter(o => o.is_heli)
+    const ctrNonHeliItems = (optList) => optList.filter(o => !o.is_heli)
+    const ctrHeliAllSelected  = (sel, optList) => { const h = ctrHeliItems(optList); return h.length > 0 && h.every(o => sel.includes(o.value)) }
+    const ctrHeliSomeSelected = (sel, optList) => { const h = ctrHeliItems(optList); return h.some(o => sel.includes(o.value)) && !h.every(o => sel.includes(o.value)) }
+    const ctrHeliCount = (optList) => ctrHeliItems(optList).reduce((s, o) => s + o.count, 0)
+    function toggleCtrHeliGroup(sel, optList) {
+      const heliVals = ctrHeliItems(optList).map(o => o.value)
+      const allSel = heliVals.every(v => sel.includes(v))
+      if (allSel) return sel.filter(v => !heliVals.includes(v))
+      return [...sel.filter(v => !heliVals.includes(v)), ...heliVals]
+    }
+
     // Extract just the values from an options array
     const vals = (optList) => optList.map(o => o.value)
 
@@ -390,7 +398,7 @@ export default {
     function applyOptions(data, resetSelections) {
       options.value.dep   = { acTypes: data.dep.ac_types,  runways: data.dep.runways, sids: data.dep.sids }
       options.value.arr   = { acTypes: data.arr.ac_types,  runways: data.arr.runways, entryPoints: data.arr.entry_points }
-      options.value.ctr   = { breakdown: data.ctr.breakdown }
+      options.value.ctr   = { acTypes: data.ctr.ac_types }
       options.value.other = { acTypes: data.other.ac_types }
 
       if (resetSelections) {
@@ -400,6 +408,7 @@ export default {
         filters.value.arrAcTypes     = vals(options.value.arr.acTypes)
         filters.value.arrRunways     = vals(options.value.arr.runways).filter(v => v !== 'UNKNOWN')
         filters.value.arrEntryPoints = vals(options.value.arr.entryPoints)
+        filters.value.ctrAcTypes     = vals(options.value.ctr.acTypes)
         filters.value.otherAcTypes   = vals(options.value.other.acTypes)
       }
     }
@@ -457,23 +466,7 @@ export default {
       },
     )
 
-    // CTR tree helpers
-    const ctrHeliAll  = computed(() => filters.value.ctrDfl && filters.value.ctrPol && filters.value.ctrHeliOther)
-    const ctrHeliSome = computed(() => (filters.value.ctrDfl || filters.value.ctrPol || filters.value.ctrHeliOther) && !ctrHeliAll.value)
-    const toggleCtrHeli = () => {
-      const v = !ctrHeliAll.value
-      filters.value.ctrDfl = v
-      filters.value.ctrPol = v
-      filters.value.ctrHeliOther = v
-    }
-    const ctrSectionCount = computed(() => {
-      const b = options.value.ctr.breakdown
-      if (!b) return null
-      return (filters.value.ctrDfl        ? (b.dfl        ?? 0) : 0) +
-             (filters.value.ctrPol        ? (b.pol        ?? 0) : 0) +
-             (filters.value.ctrHeliOther  ? (b.heli_other ?? 0) : 0) +
-             (filters.value.ctrNonHeli    ? (b.non_heli   ?? 0) : 0)
-    })
+    const ctrSectionCount = computed(() => sectionCounts.value.ctr ?? null)
 
     async function fetchCounts() {
       if (!filtersReady.value) return
@@ -490,6 +483,7 @@ export default {
             arr_ac:   csv(f.arrAcTypes),
             arr_rwy:  csv(f.arrRunways),
             arr_ep:   csv(f.arrEntryPoints),
+            ctr_ac:   csv(f.ctrAcTypes),
             other_ac: csv(f.otherAcTypes),
           },
         })
@@ -516,7 +510,8 @@ export default {
       enabled, filters, scripts,
       vals, dropLabel, runAnalysis,
       lfItems, otherItems, lfAllSelected, lfSomeSelected, lfCount, toggleLfGroup,
-      ctrHeliAll, ctrHeliSome, toggleCtrHeli, ctrSectionCount,
+      ctrHeliItems, ctrNonHeliItems, ctrHeliAllSelected, ctrHeliSomeSelected, ctrHeliCount, toggleCtrHeliGroup,
+      ctrSectionCount,
     }
   }
 }
