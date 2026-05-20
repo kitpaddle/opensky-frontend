@@ -48,7 +48,7 @@ export default {
     const dataLoaded = ref(false)
     const dataLoading = ref(false)
     const statisticsReady = ref(false)
-    const activeTab = ref('Overview')
+    const activeTab = ref('Dashboard')
     const statistics = ref(null)
     const mergedFlightsData = ref([])  // SINGLE comprehensive data source
     const tracksLoaded = ref(false)
@@ -179,7 +179,7 @@ export default {
           statistics.value = statsResponse.data.statistics
           dataLoaded.value = true
           statisticsReady.value = true  // Data tab is now ready
-          if (activeTab.value !== 'Overview') activeTab.value = 'Daily Stats'
+          activeTab.value = 'Daily Stats'
         }
       } catch (err) {
         error.value = `Failed to load statistics: ${err.message}`

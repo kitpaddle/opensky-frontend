@@ -1,40 +1,57 @@
 <template>
   <section class="content-area">
-    <!-- Tab buttons -->
+
+    <!-- Tab bar: Dashboard alone left | date/load + other tabs right -->
     <div class="tabs-header">
       <button
-        v-for="tab in tabs"
-        :key="tab"
-        @click="$emit('switch-tab', tab)"
-        :disabled="tab === 'Overview' ? false : (tab === 'Daily Stats' ? !statisticsReady : (!dataLoaded || dataLoading))"
-        :class="['tab-button', { active: activeTab === tab, loading: (tab !== 'Overview' && (tab === 'Daily Stats' ? (!statisticsReady && dataLoading) : dataLoading)) }]"
-      >
-        <span v-if="tab !== 'Overview' && (tab === 'Daily Stats' ? (!statisticsReady && dataLoading) : dataLoading)" class="tab-spinner"></span>
-        {{ tab }}
-      </button>
-      <div class="tabs-date-controls">
-        <input type="date" v-model="localDate"
-          :min="minDate" :max="maxDate"
-          @change="onDateChange"
-          class="tabs-date-input"/>
-        <button @click="onLoadClick"
-          :disabled="dataLoading || !localDate || lastLoadedDate === localDate"
-          class="tabs-load-btn">
-          <span v-if="dataLoading" class="tab-spinner"></span>
-          {{ dataLoading ? 'Loading…' : 'Load Data' }}
+        @click="$emit('switch-tab', 'Dashboard')"
+        :class="['tab-button', 'tab-dashboard', { active: activeTab === 'Dashboard' }]"
+      >Dashboard</button>
+
+      <button
+        @click="$emit('switch-tab', 'Analysis')"
+        :class="['tab-button', 'tab-analysis', { active: activeTab === 'Analysis' }]"
+      >Analysis</button>
+
+      <div class="tabs-right-group">
+        <div class="tabs-date-controls">
+          <input type="date" v-model="localDate"
+            :min="minDate" :max="maxDate"
+            @change="onDateChange"
+            class="tabs-date-input"/>
+          <button @click="onLoadClick"
+            :disabled="dataLoading || !localDate || lastLoadedDate === localDate"
+            class="tabs-load-btn">
+            <span v-if="dataLoading" class="tab-spinner"></span>
+            {{ dataLoading ? 'Loading…' : 'Load Data' }}
+          </button>
+        </div>
+        <button
+          v-for="tab in secondaryTabs"
+          :key="tab"
+          @click="$emit('switch-tab', tab)"
+          :disabled="tab === 'Daily Stats' ? !statisticsReady : (!dataLoaded || dataLoading)"
+          :class="['tab-button', { active: activeTab === tab, loading: tab === 'Daily Stats' ? (!statisticsReady && dataLoading) : dataLoading }]"
+        >
+          <span v-if="tab === 'Daily Stats' ? (!statisticsReady && dataLoading) : dataLoading" class="tab-spinner"></span>
+          {{ tab }}
         </button>
       </div>
     </div>
 
     <!-- Tab content -->
     <div class="tab-content">
-      <!-- Welcome message when no data loaded (not shown on Overview which loads its own data) -->
-      <div v-if="!dataLoaded && activeTab !== 'Overview'" class="welcome-state">
-        <p>📅 Select a date on the left and load data to begin analyzing flight data.</p>
+      <div v-if="!dataLoaded && activeTab !== 'Dashboard' && activeTab !== 'Analysis'" class="welcome-state">
+        <p>📅 Select a date and load data to begin analyzing flight data.</p>
       </div>
 
-      <!-- Overview Tab -->
-      <div v-show="activeTab === 'Overview'" class="tab-pane tab-pane-padded">
+      <!-- Analysis Tab -->
+      <div v-show="activeTab === 'Analysis'" class="tab-pane">
+        <AnalysisTab />
+      </div>
+
+      <!-- Dashboard Tab -->
+      <div v-show="activeTab === 'Dashboard'" class="tab-pane tab-pane-padded">
         <OverviewTab
           :selectedDate="date"
           :dataLoading="dataLoading"
@@ -50,8 +67,8 @@
 
       <!-- Flights Map Tab -->
       <div v-show="activeTab === 'Flights Map'" class="tab-pane">
-        <FlightsMap 
-          :date="date" 
+        <FlightsMap
+          :date="date"
           :mergedFlights="mergedFlights"
           :filteredFlightIds="filteredFlightIds"
         />
@@ -74,6 +91,7 @@
         <FlightsReview :mergedFlights="mergedFlights" @filtered-flights-changed="onFilteredFlightsChanged" />
       </div>
     </div>
+
   </section>
 </template>
 
@@ -81,6 +99,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import OverviewTab from './OverviewTab.vue'
+import AnalysisTab from './AnalysisTab.vue'
 import DataTab from './DataTab.vue'
 import FlightsMap from './FlightsMap.vue'
 import FlightsView3D from './FlightsView3D.vue'
@@ -90,6 +109,7 @@ export default {
   name: 'TabsContainer',
   components: {
     OverviewTab,
+    AnalysisTab,
     DataTab,
     FlightsMap,
     FlightsView3D,
@@ -107,7 +127,8 @@ export default {
   },
   emits: ['switch-tab', 'update-date', 'load-data'],
   setup(props, { emit }) {
-    const tabs = ['Overview', 'Daily Stats', 'Flights Review', 'Flights Map', '3D View']
+    const tabs = ['Dashboard', 'Daily Stats', 'Flights Review', 'Flights Map', '3D View']
+    const secondaryTabs = ['Daily Stats', 'Flights Review', 'Flights Map', '3D View']
 
     const filteredFlightIds = ref([])
     const flightsView3D = ref(null)
@@ -145,7 +166,7 @@ export default {
       filteredFlightIds.value = flightIds
     }
 
-    return { tabs, filteredFlightIds, onFilteredFlightsChanged, flightsView3D, localDate, lastLoadedDate, minDate, maxDate, onLoadClick, onDateChange }
+    return { tabs, secondaryTabs, filteredFlightIds, onFilteredFlightsChanged, flightsView3D, localDate, lastLoadedDate, minDate, maxDate, onLoadClick, onDateChange }
   }
 }
 </script>
@@ -159,6 +180,23 @@ export default {
   overflow: hidden;
 }
 
+.tabs-right-group {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  margin-left: auto;
+}
+
+.tab-dashboard {
+  padding-right: 1.1rem;
+}
+
+.tab-analysis {
+  border-right: 1px solid #3a3a55;
+  margin-right: 0.3rem;
+  padding-right: 1.1rem;
+}
+
 .tabs-header {
   display: flex;
   align-items: center;
@@ -169,7 +207,6 @@ export default {
 }
 
 .tabs-date-controls {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.4rem;

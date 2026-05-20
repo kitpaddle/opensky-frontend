@@ -7,6 +7,11 @@
 
     <template v-else>
 
+      <!-- ── Dashboard heading ─────────────────────────────────────── -->
+      <div class="dashboard-heading">
+        ESSA DASHBOARD — {{ averages?.kpi?.day_count || 0 }} days / {{ totalEssaFlights.toLocaleString() }} flights
+      </div>
+
       <!-- ── Top: KPIs left, Runways right ────────────────────────── -->
       <div class="top-section">
 
@@ -14,7 +19,6 @@
         <div class="kpi-panel">
           <div class="kpi-panel-title">
             Average per day
-            <span class="kpi-panel-subtitle">({{ averages?.kpi?.day_count || 0 }} days · {{ totalEssaFlights.toLocaleString() }} ESSA flights)</span>
           </div>
           <div v-for="c in kpiCards" :key="c.key"
             class="kpi-card"
@@ -475,15 +479,17 @@ const chartXTicks = computed(() => {
   font-size: 0.75rem; font-weight: 700; color: #888;
   text-transform: uppercase; letter-spacing: 0.6px;
 }
+.dashboard-heading {
+  text-align: center;
+  font-size: 1.1rem; font-weight: 700; color: #ccc;
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
 .kpi-panel-title {
   grid-column: 1 / -1;
   text-align: center;
   font-size: 0.75rem; font-weight: 700; color: #888;
   text-transform: uppercase; letter-spacing: 0.6px;
-}
-.kpi-panel-subtitle {
-  font-size: 0.68rem; font-weight: 400; color: #bbb;
-  text-transform: none; letter-spacing: 0;
 }
 .runway-row {
   display: grid;
