@@ -96,7 +96,7 @@
       </div>
 
       <!-- DEP Markers -->
-      <div class="layer-group">
+      <div v-if="showDepMarkers" class="layer-group">
         <div class="group-header">
           <input
             type="checkbox"
@@ -161,6 +161,9 @@ import { ref } from 'vue'
 
 export default {
   name: 'AirspaceLayerPanel',
+  props: {
+    showDepMarkers: { type: Boolean, default: true },
+  },
   emits: ['layer-change', 'basemap-change'],
   setup(props, { emit }) {
     const isExpanded = ref(true)

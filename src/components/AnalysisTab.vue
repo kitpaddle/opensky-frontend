@@ -293,44 +293,164 @@
 
       </template>
 
-      <!-- Analysis Script + Run -->
+      <!-- Run -->
       <hr class="ctrl-divider" />
-
-      <div class="ctrl-section ctrl-section-script">
-        <div class="ctrl-label">Analysis Type</div>
-        <select v-model="filters.script" class="ctrl-select">
-          <option value="">— select —</option>
-          <option v-for="s in scripts" :key="s.id" :value="s.id">{{ s.label }}</option>
-        </select>
-        <button class="ctrl-run-btn" :disabled="!filters.script || !filtersReady" @click="runAnalysis">
-          Run Analysis
-        </button>
+      <div class="map-mode-toggle">
+        <button :class="['mode-btn', { 'mode-btn--active': mapMode === 'image' }]" @click="mapMode = 'image'">Image</button>
+        <button :class="['mode-btn', { 'mode-btn--active': mapMode === 'tiles' }]" @click="mapMode = 'tiles'">Tiles</button>
       </div>
+      <button class="ctrl-run-btn" :disabled="!filtersReady" @click="runAnalysis">
+        CREATE MAP
+      </button>
 
     </div>
 
     <!-- ── Right: Results Panel ───────────────────────────────────── -->
     <div class="analysis-results">
-      <div class="results-empty">
-        <span>Configure filters and choose an analysis type, then run.</span>
+      <div ref="mapContainer" class="map-container"></div>
+
+      <div v-if="!mapImageData && !creatingMap" class="results-overlay">
+        Configure filters and click CREATE MAP.
+      </div>
+      <div v-if="creatingMap" class="results-overlay results-overlay--loading">
+        Rendering {{ totalFlightCount.toLocaleString() }} tracks…
+      </div>
+
+      <AirspaceLayerPanel :show-dep-markers="false" @layer-change="onLayerChange" @basemap-change="onBasemapChange" />
+
+      <div v-if="mapImageData" class="map-count-badge">
+        {{ mapImageData.count.toLocaleString() }} flights
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
+import OlMap from 'ol/Map'
+import View from 'ol/View'
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
+import VectorSource from 'ol/source/Vector'
+import ImageLayer from 'ol/layer/Image'
+import XYZ from 'ol/source/XYZ'
+import Static from 'ol/source/ImageStatic'
+import GeoJSON from 'ol/format/GeoJSON'
+import { fromLonLat, transformExtent } from 'ol/proj'
+import { Stroke, Style, Fill, Circle as CircleStyle, Text } from 'ol/style'
+import AirspaceLayerPanel from './AirspaceLayerPanel.vue'
+import { useAirspaceData } from '../composables/useAirspaceData.js'
 
 export default {
   name: 'AnalysisTab',
+  components: { AirspaceLayerPanel },
   setup() {
     const activeDropdown = ref(null)
     const toggleDropdown = (key) => {
       activeDropdown.value = activeDropdown.value === key ? null : key
     }
 
-    const scripts = []
+    // ── Map state ──────────────────────────────────────────────────
+    const mapContainer = ref(null)
+    const creatingMap  = ref(false)
+    const mapImageData = ref(null)
+    const mapMode      = ref('image')   // 'image' | 'tiles'
+    let olMap        = null
+    let basemapLayer = null
+    let trackLayer   = null
+    const airspaceLayers = ref({})
+    const { airspaceData } = useAirspaceData()
+    const geoJsonFormat = new GeoJSON()
+
+    // Airspace layer styles (same as FlightsMap)
+    const airspaceLayerStyle = new Style({
+      stroke: new Stroke({ color: 'rgba(255, 50, 50, 0.8)', width: 1.5, lineDash: [5, 5] }),
+      fill:   new Fill({ color: 'rgba(255, 50, 50, 0.02)' }),
+    })
+    const r16LayerStyle = new Style({
+      stroke: new Stroke({ color: 'rgba(255, 140, 0, 0.85)', width: 1.5, lineDash: [8, 4] }),
+      fill:   new Fill({ color: 'rgba(255, 140, 0, 0.04)' }),
+    })
+    const tmaLayerStyle = new Style({
+      stroke: new Stroke({ color: 'rgba(100, 180, 255, 0.85)', width: 1.5, lineDash: [10, 5] }),
+      fill:   new Fill({ color: 'rgba(100, 180, 255, 0.03)' }),
+    })
+    const makeProcedureStyleFn = (color) => (feature) => new Style({
+      image: new CircleStyle({ radius: 5, fill: new Fill({ color }), stroke: new Stroke({ color: 'rgba(0,0,0,0.6)', width: 1 }) }),
+      text:  new Text({ text: feature.get('name') || '', offsetY: -12, font: 'bold 10px sans-serif', fill: new Fill({ color }), stroke: new Stroke({ color: 'rgba(0,0,0,0.8)', width: 2 }) }),
+    })
+    const sidStyleFn  = makeProcedureStyleFn('rgba(0, 210, 210, 1)')
+    const starStyleFn = makeProcedureStyleFn('rgba(255, 170, 0, 1)')
+
+    const createBasemapLayer = (type) => {
+      if (type === 'none') return null
+      const url = type === 'black'
+        ? 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+        : 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'
+      return new TileLayer({ source: new XYZ({ url, attributions: '' }), zIndex: 0 })
+    }
+
+    const onBasemapChange = ({ basemap }) => {
+      if (!olMap) return
+      if (basemapLayer) olMap.removeLayer(basemapLayer)
+      basemapLayer = createBasemapLayer(basemap)
+      if (basemapLayer) olMap.getLayers().insertAt(0, basemapLayer)
+    }
+
+    const _addVectorLayer = (features, style, zIndex) => {
+      const source = new VectorSource()
+      geoJsonFormat.readFeatures(
+        { type: 'FeatureCollection', features },
+        { featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326' }
+      ).forEach(f => source.addFeature(f))
+      const layer = new VectorLayer({ source, style, zIndex })
+      olMap.addLayer(layer)
+      return layer
+    }
+
+    const onLayerChange = ({ type, airport, zone, data }) => {
+      if (!olMap) return
+
+      if (type === 'ctr' && airport === 'essa') {
+        if (!airspaceData.value.essaCtr) return
+        if (!airspaceLayers.value.essaCTR) {
+          airspaceLayers.value.essaCTR = new VectorLayer({ source: new VectorSource(), style: airspaceLayerStyle, zIndex: 5 })
+          olMap.addLayer(airspaceLayers.value.essaCTR)
+        }
+        const visible = data.full ? airspaceData.value.essaCtr.filter(f => f.properties.NAMEOFAREA === 'ARLANDA CTR') : []
+        const src = airspaceLayers.value.essaCTR.getSource()
+        src.clear()
+        if (visible.length) {
+          geoJsonFormat.readFeatures({ type: 'FeatureCollection', features: visible }, { featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326' }).forEach(f => src.addFeature(f))
+          airspaceLayers.value.essaCTR.setVisible(true)
+        } else {
+          airspaceLayers.value.essaCTR.setVisible(false)
+        }
+
+      } else if (type === 'tma') {
+        if (!airspaceLayers.value.tma)
+          airspaceLayers.value.tma = _addVectorLayer(airspaceData.value.tma, tmaLayerStyle, 4)
+        airspaceLayers.value.tma.setVisible(data.visible)
+
+      } else if (type === 'r16') {
+        if (!airspaceData.value.r16?.length) return
+        if (!airspaceLayers.value.r16)
+          airspaceLayers.value.r16 = _addVectorLayer(airspaceData.value.r16, r16LayerStyle, 5)
+        airspaceLayers.value.r16.setVisible(data.visible)
+
+      } else if (type === 'sid') {
+        if (!airspaceLayers.value.sid)
+          airspaceLayers.value.sid = _addVectorLayer(airspaceData.value.essaSid, sidStyleFn, 6)
+        airspaceLayers.value.sid.setVisible(data.visible)
+
+      } else if (type === 'star') {
+        if (!airspaceLayers.value.star)
+          airspaceLayers.value.star = _addVectorLayer(airspaceData.value.essaStar, starStyleFn, 6)
+        airspaceLayers.value.star.setVisible(data.visible)
+      }
+      // dep markers not applicable in analysis map — ignored
+    }
 
     const filtersReady   = ref(false)
     const loadingOptions = ref(false)
@@ -354,7 +474,6 @@ export default {
       ctrAcTypes: [],
       vehTowTruck: false, vehCityCrossing: false, vehNorraCrossing: false,
       otherAcTypes: [],
-      script: '',
     })
 
     // LF (regional/prop) aircraft type grouping
@@ -417,6 +536,18 @@ export default {
     let initializing = true
 
     onMounted(async () => {
+      // Initialise OpenLayers map
+      basemapLayer = createBasemapLayer('black')
+      olMap = new OlMap({
+        target: mapContainer.value,
+        layers: [basemapLayer],
+        view: new View({
+          center: fromLonLat([17.93, 59.65]),
+          zoom: 8,
+        }),
+        controls: [],
+      })
+
       loadingOptions.value = true
       try {
         const { data } = await axios.get('/api/analysis/filter-options')
@@ -436,6 +567,10 @@ export default {
         loadingOptions.value = false
         nextTick(() => { initializing = false })
       }
+    })
+
+    onUnmounted(() => {
+      if (olMap) { olMap.setTarget(undefined); olMap = null }
     })
 
     // Re-fetch options when the date/time range changes
@@ -500,18 +635,102 @@ export default {
       countDebounce = setTimeout(fetchCounts, 400)
     }, { deep: true })
 
-    const runAnalysis = () => {
-      // placeholder — will POST to /api/analysis/run
+    const totalFlightCount = computed(() => {
+      const s = sectionCounts.value
+      const e = enabled.value
+      return (e.dep   ? (s.dep   ?? 0) : 0)
+           + (e.arr   ? (s.arr   ?? 0) : 0)
+           + (e.ctr   ? (s.ctr   ?? 0) : 0)
+           + (e.veh   ? (s.veh   ?? 0) : 0)
+           + (e.other ? (s.other ?? 0) : 0)
+    })
+
+    function _applyTrackImage(data) {
+      if (!olMap || !data.image) return
+      if (trackLayer) { olMap.removeLayer(trackLayer); trackLayer = null }
+      const b = data.bounds
+      const extent = transformExtent([b.west, b.south, b.east, b.north], 'EPSG:4326', 'EPSG:3857')
+      trackLayer = new ImageLayer({
+        source: new Static({ url: data.image, imageExtent: extent }),
+        zIndex: 10,
+      })
+      olMap.addLayer(trackLayer)
+      olMap.getView().fit(extent, { padding: [30, 30, 30, 30], duration: 600 })
     }
+
+    function _buildPayload() {
+      const f   = filters.value
+      const csv = arr => arr.join(',')
+      return {
+        from_dt:   `${f.startDate}T${f.startTime}`,
+        to_dt:     `${f.endDate}T${f.endTime}`,
+        dep_ac:    csv(f.depAcTypes),
+        dep_rwy:   csv(f.depRunways),
+        dep_sid:   csv(f.depSids),
+        arr_ac:    csv(f.arrAcTypes),
+        arr_rwy:   csv(f.arrRunways),
+        arr_ep:    csv(f.arrEntryPoints),
+        ctr_ac:    csv(f.ctrAcTypes),
+        other_ac:  csv(f.otherAcTypes),
+        inc_dep:   enabled.value.dep,
+        inc_arr:   enabled.value.arr,
+        inc_ctr:   enabled.value.ctr,
+        inc_veh:   enabled.value.veh,
+        inc_other: enabled.value.other,
+      }
+    }
+
+    function _applyTileLayer(jobId) {
+      if (!olMap) return
+      if (trackLayer) { olMap.removeLayer(trackLayer); trackLayer = null }
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      trackLayer = new TileLayer({
+        source: new XYZ({
+          url: `${base}/api/analysis/tiles/${jobId}/{z}/{x}/{y}.png`,
+          crossOrigin: 'anonymous',
+          tileSize: 256,
+        }),
+        zIndex: 10,
+        opacity: 0.9,
+      })
+      olMap.addLayer(trackLayer)
+    }
+
+    async function runAnalysis() {
+      if (!filtersReady.value) return
+      creatingMap.value = true
+      try {
+        if (mapMode.value === 'tiles') {
+          const { data } = await axios.post('/api/analysis/create-map-tiles', _buildPayload())
+          if (data.job_id) {
+            mapImageData.value = { count: data.count }
+            _applyTileLayer(data.job_id)
+          }
+        } else {
+          const { data } = await axios.post('/api/analysis/create-map', _buildPayload())
+          if (data.image) {
+            mapImageData.value = data
+            _applyTrackImage(data)
+          }
+        }
+      } catch (e) {
+        console.error('create-map failed', e)
+      } finally {
+        creatingMap.value = false
+      }
+    }
+
 
     return {
       activeDropdown, toggleDropdown,
       options, filtersReady, loadingOptions, sectionCounts,
-      enabled, filters, scripts,
+      enabled, filters,
       vals, dropLabel, runAnalysis,
       lfItems, otherItems, lfAllSelected, lfSomeSelected, lfCount, toggleLfGroup,
       ctrHeliItems, ctrNonHeliItems, ctrHeliAllSelected, ctrHeliSomeSelected, ctrHeliCount, toggleCtrHeliGroup,
       ctrSectionCount,
+      mapContainer, creatingMap, mapImageData, mapMode, totalFlightCount,
+      onLayerChange, onBasemapChange,
     }
   }
 }
@@ -598,25 +817,33 @@ export default {
 .ctrl-input:focus { outline: none; border-color: #667eea; color: #eee; }
 .ctrl-input-time { width: 82px; }
 
-.ctrl-select {
-  width: 100%;
-  background: #22223a;
-  border: 1px solid #33334d;
-  border-radius: 4px;
-  color: #bbb;
-  font-size: 0.73rem;
-  padding: 0.28rem 0.4rem;
-  margin-bottom: 0.5rem;
-}
-.ctrl-select:focus { outline: none; border-color: #667eea; }
-
-.ctrl-section-script { border-bottom: none; }
-
 .ctrl-divider {
   border: none;
   border-top: 1px solid #2a2a3e;
   margin: 0.4rem 0 0.8rem;
 }
+
+.map-mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.4rem;
+  border: 1px solid #33334d;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mode-btn {
+  flex: 1;
+  padding: 0.3rem 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #22223a;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.mode-btn:hover { background: #2a2a45; color: #aaa; }
+.mode-btn--active { background: #667eea; color: #fff; }
 
 .ctrl-run-btn {
   width: 100%;
@@ -835,20 +1062,47 @@ export default {
 /* ── Right Results Panel ───────────────────────────────────────── */
 .analysis-results {
   flex: 1;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
+  position: relative;
   min-width: 0;
+  overflow: hidden;
 }
 
-.results-empty {
-  flex: 1;
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.results-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #333;
+  color: #444;
   font-size: 0.85rem;
-  text-align: center;
-  padding: 2rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.results-overlay--loading {
+  color: #667eea;
+  background: rgba(18, 18, 30, 0.6);
+  pointer-events: all;
+}
+
+
+.map-count-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 0.2rem 0.55rem;
+  background: rgba(26, 26, 46, 0.85);
+  border: 1px solid #3a3a5c;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  color: #667eea;
+  font-weight: 700;
+  z-index: 20;
+  pointer-events: none;
 }
 </style>
