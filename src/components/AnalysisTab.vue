@@ -247,11 +247,13 @@
             <input type="color" v-model="filters.ctrGroups.others.color" class="ctr-color-swatch" />
           </div>
           <div class="ctr-group-divider"></div>
-          <div class="clf-row clf-row-check">
-            <label class="clf-check">
-              <input type="checkbox" v-model="filters.ctrGroups.patriaOnly" />
-              To/From Patria
-            </label>
+          <div class="clf-row clf-patria-row">
+            <span class="clf-row-lbl">Patria</span>
+            <div class="patria-toggle">
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.ctrGroups.patriaFilter === 'all' }]"         @click="filters.ctrGroups.patriaFilter = 'all'">All</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.ctrGroups.patriaFilter === 'patria' }]"       @click="filters.ctrGroups.patriaFilter = 'patria'">Only</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.ctrGroups.patriaFilter === 'non_patria' }]"   @click="filters.ctrGroups.patriaFilter = 'non_patria'">Excl.</button>
+            </div>
           </div>
         </div>
       </div>
@@ -318,10 +320,12 @@
 
       <!-- Run -->
       <hr class="ctrl-divider" />
+      <!-- Image/Tiles toggle — image mode hidden for now; tiles only
       <div class="map-mode-toggle">
         <button :class="['mode-btn', { 'mode-btn--active': mapMode === 'image' }]" @click="mapMode = 'image'">Image</button>
         <button :class="['mode-btn', { 'mode-btn--active': mapMode === 'tiles' }]" @click="mapMode = 'tiles'">Tiles</button>
       </div>
+      -->
       <button class="ctrl-run-btn" :disabled="!filtersReady" @click="runAnalysis">
         CREATE MAP
       </button>
@@ -361,7 +365,7 @@ import XYZ from 'ol/source/XYZ'
 import Static from 'ol/source/ImageStatic'
 import GeoJSON from 'ol/format/GeoJSON'
 import { fromLonLat, transformExtent } from 'ol/proj'
-import { Stroke, Style, Fill, Circle as CircleStyle, Text } from 'ol/style'
+import { Stroke, Style, Fill, Circle as CircleStyle, Text, RegularShape } from 'ol/style'
 import AirspaceLayerPanel from './AirspaceLayerPanel.vue'
 import { useAirspaceData } from '../composables/useAirspaceData.js'
 
@@ -383,7 +387,7 @@ export default {
     let basemapLayer = null
     let trackLayer   = null
     const airspaceLayers = ref({})
-    const { airspaceData } = useAirspaceData()
+    const { airspaceData, fetchEssaVfrPoints } = useAirspaceData()
     const geoJsonFormat = new GeoJSON()
 
     // Airspace layer styles (same as FlightsMap)
@@ -405,6 +409,20 @@ export default {
     })
     const sidStyleFn  = makeProcedureStyleFn('rgba(0, 210, 210, 1)')
     const starStyleFn = makeProcedureStyleFn('rgba(255, 170, 0, 1)')
+    let currentBasemap = 'black'
+
+    const makeVfrStyleFn = (basemap) => {
+      const color  = basemap === 'black' ? '#ffffff' : '#000000'
+      const shadow = basemap === 'black' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)'
+      return (feature) => {
+        const label = feature.get('DESIGNATOR') || feature.get('NAME') || feature.get('name') || ''
+        const isEctr = feature.get('_vfrType') === 'ectr'
+        const image = isEctr
+          ? new RegularShape({ points: 3, radius: 6, angle: 0, fill: new Fill({ color }), stroke: new Stroke({ color: shadow, width: 0.5 }) })
+          : new CircleStyle({ radius: 5, fill: new Fill({ color: 'rgba(0,0,0,0)' }), stroke: new Stroke({ color, width: 1.5 }) })
+        return new Style({ image, text: new Text({ text: label, offsetY: -13, font: 'bold 10px sans-serif', fill: new Fill({ color }), stroke: new Stroke({ color: shadow, width: 2 }) }) })
+      }
+    }
 
     const createBasemapLayer = (type) => {
       if (type === 'none') return null
@@ -419,6 +437,9 @@ export default {
       if (basemapLayer) olMap.removeLayer(basemapLayer)
       basemapLayer = createBasemapLayer(basemap)
       if (basemapLayer) olMap.getLayers().insertAt(0, basemapLayer)
+      currentBasemap = basemap
+      if (airspaceLayers.value.vfrPoints)
+        airspaceLayers.value.vfrPoints.setStyle(makeVfrStyleFn(basemap))
     }
 
     const _addVectorLayer = (features, style, zIndex) => {
@@ -471,6 +492,20 @@ export default {
         if (!airspaceLayers.value.star)
           airspaceLayers.value.star = _addVectorLayer(airspaceData.value.essaStar, starStyleFn, 6)
         airspaceLayers.value.star.setVisible(data.visible)
+
+      } else if (type === 'vfrPoints') {
+        if (data.visible) {
+          fetchEssaVfrPoints().then(() => {
+            if (!airspaceLayers.value.vfrPoints) {
+              airspaceLayers.value.vfrPoints = _addVectorLayer(
+                airspaceData.value.essaVfrPoints || [], makeVfrStyleFn(currentBasemap), 7
+              )
+            }
+            airspaceLayers.value.vfrPoints.setVisible(true)
+          })
+        } else if (airspaceLayers.value.vfrPoints) {
+          airspaceLayers.value.vfrPoints.setVisible(false)
+        }
       }
       // dep markers not applicable in analysis map — ignored
     }
@@ -496,10 +531,10 @@ export default {
       arrAcTypes: [], arrRunways: [], arrEntryPoints: [],
       ctrAcTypes: [],
       ctrGroups: {
-        pol:        { show: true,  color: '#80deea' },
-        dfl:        { show: true,  color: '#ffcc80' },
-        others:     { show: true,  color: '#ce93d8' },
-        patriaOnly: false,
+        pol:          { show: true, color: '#00ccff' },
+        dfl:          { show: true, color: '#ff8800' },
+        others:       { show: true, color: '#cc00ff' },
+        patriaFilter: 'all',
       },
       vehTowTruck: false, vehCityCrossing: false, vehNorraCrossing: false,
       otherAcTypes: [],
@@ -639,16 +674,19 @@ export default {
       try {
         const { data } = await axios.get('/api/analysis/flight-counts', {
           params: {
-            from_dt:  `${f.startDate}T${f.startTime}`,
-            to_dt:    `${f.endDate}T${f.endTime}`,
-            dep_ac:   csv(f.depAcTypes),
-            dep_rwy:  csv(f.depRunways),
-            dep_sid:  csv(f.depSids),
-            arr_ac:   csv(f.arrAcTypes),
-            arr_rwy:  csv(f.arrRunways),
-            arr_ep:   csv(f.arrEntryPoints),
-            ctr_ac:   csv(f.ctrAcTypes),
-            other_ac: csv(f.otherAcTypes),
+            from_dt:         `${f.startDate}T${f.startTime}`,
+            to_dt:           `${f.endDate}T${f.endTime}`,
+            dep_ac:          csv(f.depAcTypes),
+            dep_rwy:         csv(f.depRunways),
+            dep_sid:         csv(f.depSids),
+            arr_ac:          csv(f.arrAcTypes),
+            arr_rwy:         csv(f.arrRunways),
+            arr_ep:          csv(f.arrEntryPoints),
+            ctr_ac:          csv(f.ctrAcTypes),
+            ctr_show_pol:    f.ctrGroups.pol.show,
+            ctr_show_dfl:    f.ctrGroups.dfl.show,
+            ctr_show_others: f.ctrGroups.others.show,
+            other_ac:        csv(f.otherAcTypes),
           },
         })
         sectionCounts.value = data
@@ -674,18 +712,19 @@ export default {
            + (e.other ? (s.other ?? 0) : 0)
     })
 
-    function _applyTrackImage(data) {
-      if (!olMap || !data.image) return
-      if (trackLayer) { olMap.removeLayer(trackLayer); trackLayer = null }
-      const b = data.bounds
-      const extent = transformExtent([b.west, b.south, b.east, b.north], 'EPSG:4326', 'EPSG:3857')
-      trackLayer = new ImageLayer({
-        source: new Static({ url: data.image, imageExtent: extent }),
-        zIndex: 10,
-      })
-      olMap.addLayer(trackLayer)
-      olMap.getView().fit(extent, { padding: [30, 30, 30, 30], duration: 600 })
-    }
+    // Image mode — kept for reference, not active
+    // function _applyTrackImage(data) {
+    //   if (!olMap || !data.image) return
+    //   if (trackLayer) { olMap.removeLayer(trackLayer); trackLayer = null }
+    //   const b = data.bounds
+    //   const extent = transformExtent([b.west, b.south, b.east, b.north], 'EPSG:4326', 'EPSG:3857')
+    //   trackLayer = new ImageLayer({
+    //     source: new Static({ url: data.image, imageExtent: extent }),
+    //     zIndex: 10,
+    //   })
+    //   olMap.addLayer(trackLayer)
+    //   olMap.getView().fit(extent, { padding: [30, 30, 30, 30], duration: 600 })
+    // }
 
     function _buildPayload() {
       const f   = filters.value
@@ -713,7 +752,7 @@ export default {
         ctr_dfl_color:    g.dfl.color,
         ctr_show_others:  g.others.show,
         ctr_others_color: g.others.color,
-        ctr_patria_only:  g.patriaOnly,
+        ctr_patria_filter: g.patriaFilter,
       }
     }
 
@@ -737,19 +776,14 @@ export default {
       if (!filtersReady.value) return
       creatingMap.value = true
       try {
-        if (mapMode.value === 'tiles') {
-          const { data } = await axios.post('/api/analysis/create-map-tiles', _buildPayload())
-          if (data.job_id) {
-            mapImageData.value = { count: data.count }
-            _applyTileLayer(data.job_id)
-          }
-        } else {
-          const { data } = await axios.post('/api/analysis/create-map', _buildPayload())
-          if (data.image) {
-            mapImageData.value = data
-            _applyTrackImage(data)
-          }
+        const { data } = await axios.post('/api/analysis/create-map-tiles', _buildPayload())
+        if (data.job_id) {
+          mapImageData.value = { count: data.count }
+          _applyTileLayer(data.job_id)
         }
+        // Image mode — kept for reference
+        // const { data } = await axios.post('/api/analysis/create-map', _buildPayload())
+        // if (data.image) { mapImageData.value = data; _applyTrackImage(data) }
       } catch (e) {
         console.error('create-map failed', e)
       } finally {
@@ -766,7 +800,7 @@ export default {
       lfItems, otherItems, lfAllSelected, lfSomeSelected, lfCount, toggleLfGroup,
       ctrHeliItems, ctrNonHeliItems, ctrHeliAllSelected, ctrHeliSomeSelected, ctrHeliCount, toggleCtrHeliGroup,
       ctrSectionCount,
-      mapContainer, creatingMap, mapImageData, mapMode, totalFlightCount,
+      mapContainer, creatingMap, mapImageData, totalFlightCount,
       onLayerChange, onBasemapChange,
     }
   }
@@ -1015,6 +1049,35 @@ export default {
   border-top: 1px solid #2a2a3e;
   margin: 0.25rem 0;
 }
+
+.clf-patria-row {
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.patria-toggle {
+  display: flex;
+  border: 1px solid #33334d;
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.ptoggle-btn {
+  flex: 1;
+  padding: 0.18rem 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #22223a;
+  border: none;
+  border-right: 1px solid #33334d;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ptoggle-btn:last-child { border-right: none; }
+.ptoggle-btn:hover { background: #2a2a45; color: #aaa; }
+.ptoggle-btn--active { background: #667eea; color: #fff; }
 
 .clf-sub {
   padding-left: 1.4rem;

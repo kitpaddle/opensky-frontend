@@ -22,6 +22,7 @@ const airspaceData = ref({
   essaSid: SID_FEATURES,
   essaStar: STAR_FEATURES,
   tma: TMA_FEATURES,
+  essaVfrPoints: null,  // combined VFRH + ECTR features[]
 })
 
 // In-flight fetch promises — prevent duplicate concurrent requests for the same key
@@ -50,6 +51,31 @@ export function useAirspaceData() {
 
   // SID/STAR are static — no fetch needed, already in airspaceData at init
 
+  const fetchEssaVfrPoints = async () => {
+    if (airspaceData.value.essaVfrPoints !== null) return
+    if (pending['essaVfrPoints']) return pending['essaVfrPoints']
+
+    pending['essaVfrPoints'] = Promise.all([
+      GeoserverClient.fetchEssaVFRH(),
+      GeoserverClient.fetchEssaECTR(),
+    ])
+      .then(([vfrh, ectr]) => {
+        const tag = (features, vfrType) =>
+          (features || []).map(f => ({ ...f, properties: { ...f.properties, _vfrType: vfrType } }))
+        airspaceData.value.essaVfrPoints = [
+          ...tag(vfrh.features, 'holdings'),
+          ...tag(ectr.features, 'ectr'),
+        ]
+      })
+      .catch(e => {
+        console.error('[AirspaceData] Failed to fetch essaVfrPoints:', e)
+        airspaceData.value.essaVfrPoints = []
+      })
+      .finally(() => { delete pending['essaVfrPoints'] })
+
+    return pending['essaVfrPoints']
+  }
+
   const prefetchAll = () => {
     fetchEssaCtr()
     fetchEssbCtr()
@@ -64,5 +90,6 @@ export function useAirspaceData() {
     fetchEssbCtr,
     fetchEscmCtr,
     fetchR16,
+    fetchEssaVfrPoints,
   }
 }

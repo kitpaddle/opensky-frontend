@@ -57,7 +57,7 @@ export default {
     filteredFlightIds: Array,
   },
   setup(props) {
-    const { airspaceData } = useAirspaceData()
+    const { airspaceData, fetchEssaVfrPoints } = useAirspaceData()
 
     let map = null
     let vectorSource = null
@@ -129,6 +129,20 @@ export default {
 
     const sidStyleFn  = makeProcedureStyleFn('rgba(0, 210, 210, 1)')
     const starStyleFn = makeProcedureStyleFn('rgba(255, 170, 0, 1)')
+    let currentBasemap = 'black'
+
+    const makeVfrStyleFn = (basemap) => {
+      const color  = basemap === 'black' ? '#ffffff' : '#000000'
+      const shadow = basemap === 'black' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)'
+      return (feature) => {
+        const label = feature.get('DESIGNATOR') || feature.get('NAME') || feature.get('name') || ''
+        const isEctr = feature.get('_vfrType') === 'ectr'
+        const image = isEctr
+          ? new RegularShape({ points: 3, radius: 6, angle: 0, fill: new Fill({ color }), stroke: new Stroke({ color: shadow, width: 0.5 }) })
+          : new CircleStyle({ radius: 5, fill: new Fill({ color: 'rgba(0,0,0,0)' }), stroke: new Stroke({ color, width: 1.5 }) })
+        return new Style({ image, text: new Text({ text: label, offsetY: -13, font: 'bold 10px sans-serif', fill: new Fill({ color }), stroke: new Stroke({ color: shadow, width: 2 }) }) })
+      }
+    }
 
     // Create basemap tile layers
     const createBasemapLayer = (type) => {
@@ -566,6 +580,27 @@ export default {
         } catch (error) {
           console.error('[FlightsMap] Error handling STAR:', error)
         }
+      } else if (type === 'vfrPoints') {
+        try {
+          if (data.visible) {
+            await fetchEssaVfrPoints()
+            if (!airspaceLayers.value.vfrPoints) {
+              const feats = geoJsonFormat.readFeatures(
+                { type: 'FeatureCollection', features: airspaceData.value.essaVfrPoints || [] },
+                { featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326' }
+              )
+              const source = new VectorSource()
+              feats.forEach(f => source.addFeature(f))
+              airspaceLayers.value.vfrPoints = new VectorLayer({ source, style: makeVfrStyleFn(currentBasemap), zIndex: 7 })
+              map.addLayer(airspaceLayers.value.vfrPoints)
+            }
+            airspaceLayers.value.vfrPoints.setVisible(true)
+          } else if (airspaceLayers.value.vfrPoints) {
+            airspaceLayers.value.vfrPoints.setVisible(false)
+          }
+        } catch (error) {
+          console.error('[FlightsMap] Error handling VFR Points:', error)
+        }
       } else if (type === 'dep-takeoff') {
         if (!airspaceLayers.value.depTakeoff) {
           airspaceLayers.value.depTakeoff = new VectorLayer({ source: buildDepTakeoffMarkers(), zIndex: 8 })
@@ -584,19 +619,15 @@ export default {
     const onBasemapChange = (event) => {
       const { basemap } = event
       console.log('[FlightsMap] Basemap change event:', basemap)
-      
+
       if (!map) return
-      
-      // Remove old basemap layer if it exists
-      if (basemapLayer.value) {
-        map.removeLayer(basemapLayer.value)
-      }
-      
-      // Create and add new basemap layer (if not 'none')
+
+      if (basemapLayer.value) map.removeLayer(basemapLayer.value)
       basemapLayer.value = createBasemapLayer(basemap)
-      if (basemapLayer.value) {
-        map.getLayers().insertAt(0, basemapLayer.value)
-      }
+      if (basemapLayer.value) map.getLayers().insertAt(0, basemapLayer.value)
+      currentBasemap = basemap
+      if (airspaceLayers.value.vfrPoints)
+        airspaceLayers.value.vfrPoints.setStyle(makeVfrStyleFn(basemap))
       console.log('[FlightsMap] Basemap changed to:', basemap)
     }
 

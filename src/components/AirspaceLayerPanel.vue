@@ -55,6 +55,17 @@
           />
           <span class="group-title">ESSA CTR</span>
         </div>
+        <div class="group-content">
+          <label class="zone-checkbox" :class="{ 'zone-checkbox--disabled': !layers.ctr.essa.full }">
+            <input
+              type="checkbox"
+              v-model="layers.vfrPoints.visible"
+              :disabled="!layers.ctr.essa.full"
+              @change="updateSimpleLayer('vfrPoints')"
+            />
+            VFR Points
+          </label>
+        </div>
       </div>
 
       <!-- TMA -->
@@ -176,6 +187,7 @@ export default {
       ctr: {
         essa: { full: false },
       },
+      vfrPoints: { visible: false },
       tma: { visible: false },
       r16: { visible: false },
       depTakeoff: { visible: false },
@@ -186,6 +198,14 @@ export default {
 
     const updateLayer = (type, airport, zone) => {
       emit('layer-change', { type, airport, zone, data: layers.value[type][airport] })
+      // Sync VFR Points visibility with ESSA CTR parent state
+      if (type === 'ctr' && airport === 'essa') {
+        const ctrOn = layers.value.ctr.essa.full
+        emit('layer-change', {
+          type: 'vfrPoints',
+          data: { visible: ctrOn && layers.value.vfrPoints.visible },
+        })
+      }
     }
 
     const updateSimpleLayer = (type) => {
@@ -347,6 +367,11 @@ export default {
 .zone-checkbox input {
   margin-right: 6px;
   cursor: pointer;
+}
+
+.zone-checkbox--disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .basemap-options {

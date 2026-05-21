@@ -62,4 +62,12 @@ export const GeoserverClient = {
     return this.fetchFeatures("mais:RSTA", "NAMEOFAREA LIKE 'ES R16%'")
   },
 
+  async fetchEssaVFRH() {
+    return this.fetchFeatures("mais:VFRH", "POSITIONINDICATOR = 'ESSA'")
+  },
+
+  async fetchEssaECTR() {
+    return this.fetchFeatures("mais:ECTR", "POSITIONINDICATOR = 'ESSA'")
+  },
+
 }
