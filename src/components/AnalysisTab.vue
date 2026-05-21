@@ -230,6 +230,29 @@
               </div>
             </div>
           </div>
+          <!-- Callsign groups -->
+          <div class="ctr-group-row">
+            <input type="checkbox" v-model="filters.ctrGroups.pol.show" class="clf-toggle" />
+            <span class="ctr-group-label">POL</span>
+            <input type="color" v-model="filters.ctrGroups.pol.color" class="ctr-color-swatch" />
+          </div>
+          <div class="ctr-group-row">
+            <input type="checkbox" v-model="filters.ctrGroups.dfl.show" class="clf-toggle" />
+            <span class="ctr-group-label">DFL</span>
+            <input type="color" v-model="filters.ctrGroups.dfl.color" class="ctr-color-swatch" />
+          </div>
+          <div class="ctr-group-row">
+            <input type="checkbox" v-model="filters.ctrGroups.others.show" class="clf-toggle" />
+            <span class="ctr-group-label">Others</span>
+            <input type="color" v-model="filters.ctrGroups.others.color" class="ctr-color-swatch" />
+          </div>
+          <div class="ctr-group-divider"></div>
+          <div class="clf-row clf-row-check">
+            <label class="clf-check">
+              <input type="checkbox" v-model="filters.ctrGroups.patriaOnly" />
+              To/From Patria
+            </label>
+          </div>
         </div>
       </div>
 
@@ -472,6 +495,12 @@ export default {
       depAcTypes: [], depRunways: [], depSids: [],
       arrAcTypes: [], arrRunways: [], arrEntryPoints: [],
       ctrAcTypes: [],
+      ctrGroups: {
+        pol:        { show: true,  color: '#80deea' },
+        dfl:        { show: true,  color: '#ffcc80' },
+        others:     { show: true,  color: '#ce93d8' },
+        patriaOnly: false,
+      },
       vehTowTruck: false, vehCityCrossing: false, vehNorraCrossing: false,
       otherAcTypes: [],
     })
@@ -660,23 +689,31 @@ export default {
 
     function _buildPayload() {
       const f   = filters.value
+      const g   = f.ctrGroups
       const csv = arr => arr.join(',')
       return {
-        from_dt:   `${f.startDate}T${f.startTime}`,
-        to_dt:     `${f.endDate}T${f.endTime}`,
-        dep_ac:    csv(f.depAcTypes),
-        dep_rwy:   csv(f.depRunways),
-        dep_sid:   csv(f.depSids),
-        arr_ac:    csv(f.arrAcTypes),
-        arr_rwy:   csv(f.arrRunways),
-        arr_ep:    csv(f.arrEntryPoints),
-        ctr_ac:    csv(f.ctrAcTypes),
-        other_ac:  csv(f.otherAcTypes),
-        inc_dep:   enabled.value.dep,
-        inc_arr:   enabled.value.arr,
-        inc_ctr:   enabled.value.ctr,
-        inc_veh:   enabled.value.veh,
-        inc_other: enabled.value.other,
+        from_dt:          `${f.startDate}T${f.startTime}`,
+        to_dt:            `${f.endDate}T${f.endTime}`,
+        dep_ac:           csv(f.depAcTypes),
+        dep_rwy:          csv(f.depRunways),
+        dep_sid:          csv(f.depSids),
+        arr_ac:           csv(f.arrAcTypes),
+        arr_rwy:          csv(f.arrRunways),
+        arr_ep:           csv(f.arrEntryPoints),
+        ctr_ac:           csv(f.ctrAcTypes),
+        other_ac:         csv(f.otherAcTypes),
+        inc_dep:          enabled.value.dep,
+        inc_arr:          enabled.value.arr,
+        inc_ctr:          enabled.value.ctr,
+        inc_veh:          enabled.value.veh,
+        inc_other:        enabled.value.other,
+        ctr_show_pol:     g.pol.show,
+        ctr_pol_color:    g.pol.color,
+        ctr_show_dfl:     g.dfl.show,
+        ctr_dfl_color:    g.dfl.color,
+        ctr_show_others:  g.others.show,
+        ctr_others_color: g.others.color,
+        ctr_patria_only:  g.patriaOnly,
       }
     }
 
@@ -950,6 +987,34 @@ export default {
   cursor: pointer;
 }
 .clf-check input { accent-color: #667eea; cursor: pointer; }
+
+.ctr-group-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0;
+}
+
+.ctr-group-label {
+  font-size: 0.7rem;
+  color: #aaa;
+  flex: 1;
+}
+
+.ctr-color-swatch {
+  width: 20px;
+  height: 16px;
+  border: 1px solid #3a3a5c;
+  border-radius: 3px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.ctr-group-divider {
+  border-top: 1px solid #2a2a3e;
+  margin: 0.25rem 0;
+}
 
 .clf-sub {
   padding-left: 1.4rem;
