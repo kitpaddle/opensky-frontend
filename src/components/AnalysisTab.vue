@@ -268,21 +268,108 @@
         <div class="clf-body" :class="{ 'clf-body--off': !enabled.veh }">
           <div class="clf-row clf-row-check">
             <label class="clf-check">
-              <input type="checkbox" v-model="filters.vehTowTruck" />
-              Tow Trucks
+              <input type="checkbox" v-model="filters.vehFilterBadTracks" />
+              Filter bad tracks
             </label>
           </div>
-          <div class="clf-row clf-row-check">
-            <label class="clf-check">
-              <input type="checkbox" v-model="filters.vehCityCrossing" />
-              City Crossings
-            </label>
+          <div class="clf-row">
+            <span class="clf-row-lbl">Callsign</span>
+            <div class="filter-dropdown">
+              <button class="dropdown-btn" @click.stop="toggleDropdown('vehCs')">
+                {{ dropLabel(filters.vehCallsigns, options.veh.callsigns, 'Callsign') }} ▾
+              </button>
+              <div v-if="activeDropdown === 'vehCs'" class="dropdown-menu dropdown-menu--wide" @click.stop>
+                <template v-for="group in VEH_GROUPS" :key="group">
+                  <template v-if="vehGroupItems(options.veh.callsigns, group).length">
+                    <div class="dropdown-item dropdown-group-header">
+                      <input type="checkbox"
+                        :checked="vehGroupAllSelected(filters.vehCallsigns, options.veh.callsigns, group)"
+                        :indeterminate.prop="vehGroupSomeSelected(filters.vehCallsigns, options.veh.callsigns, group)"
+                        @change="filters.vehCallsigns = toggleVehGroup(filters.vehCallsigns, options.veh.callsigns, group)" />
+                      <span class="group-collapse-toggle" @click.stop="collapsedVehGroups[group] = !collapsedVehGroups[group]">
+                        {{ group }} <span class="opt-count">({{ vehGroupCount(options.veh.callsigns, group) }})</span>
+                      </span>
+                      <span class="group-chevron" @click.stop="collapsedVehGroups[group] = !collapsedVehGroups[group]">{{ collapsedVehGroups[group] ? '▶' : '▼' }}</span>
+                    </div>
+                    <template v-if="!collapsedVehGroups[group]">
+                      <label v-for="t in vehGroupItems(options.veh.callsigns, group)" :key="t.value"
+                        class="dropdown-item dropdown-item-lf" :class="{ 'zero-count': t.count === 0 }">
+                        <input type="checkbox" :value="t.value" v-model="filters.vehCallsigns" />
+                        {{ t.value }} <span class="opt-count">({{ t.count }})</span>
+                      </label>
+                    </template>
+                  </template>
+                </template>
+                <template v-if="vehFaltItems(options.veh.callsigns).length">
+                  <div class="dropdown-separator"></div>
+                  <div class="dropdown-item dropdown-group-header">
+                    <input type="checkbox"
+                      :checked="vehFaltAllSelected(filters.vehCallsigns, options.veh.callsigns)"
+                      :indeterminate.prop="vehFaltSomeSelected(filters.vehCallsigns, options.veh.callsigns)"
+                      @change="filters.vehCallsigns = toggleVehFalt(filters.vehCallsigns, options.veh.callsigns)" />
+                    <span class="group-collapse-toggle" @click.stop="collapsedVehGroups['__falt__'] = !collapsedVehGroups['__falt__']">
+                      FÄLT <span class="opt-count">({{ vehFaltCount(options.veh.callsigns) }})</span>
+                    </span>
+                    <span class="group-chevron" @click.stop="collapsedVehGroups['__falt__'] = !collapsedVehGroups['__falt__']">{{ collapsedVehGroups['__falt__'] ? '▶' : '▼' }}</span>
+                  </div>
+                  <template v-if="!collapsedVehGroups['__falt__']">
+                    <label v-for="t in vehFaltItems(options.veh.callsigns)" :key="t.value"
+                      class="dropdown-item dropdown-item-lf" :class="{ 'zero-count': t.count === 0 }">
+                      <input type="checkbox" :value="t.value" v-model="filters.vehCallsigns" />
+                      {{ t.value }} <span class="opt-count">({{ t.count }})</span>
+                    </label>
+                  </template>
+                </template>
+                <template v-if="vehOthersItems(options.veh.callsigns).length">
+                  <div class="dropdown-separator"></div>
+                  <div class="dropdown-item dropdown-group-header">
+                    <input type="checkbox"
+                      :checked="vehOthersAllSelected(filters.vehCallsigns, options.veh.callsigns)"
+                      :indeterminate.prop="vehOthersSomeSelected(filters.vehCallsigns, options.veh.callsigns)"
+                      @change="filters.vehCallsigns = toggleVehOthers(filters.vehCallsigns, options.veh.callsigns)" />
+                    <span class="group-collapse-toggle" @click.stop="collapsedVehGroups['__others__'] = !collapsedVehGroups['__others__']">
+                      Others <span class="opt-count">({{ vehOthersCount(options.veh.callsigns) }})</span>
+                    </span>
+                    <span class="group-chevron" @click.stop="collapsedVehGroups['__others__'] = !collapsedVehGroups['__others__']">{{ collapsedVehGroups['__others__'] ? '▶' : '▼' }}</span>
+                  </div>
+                  <template v-if="!collapsedVehGroups['__others__']">
+                    <label v-for="t in vehOthersItems(options.veh.callsigns)" :key="t.value"
+                      class="dropdown-item dropdown-item-lf" :class="{ 'zero-count': t.count === 0 }">
+                      <input type="checkbox" :value="t.value" v-model="filters.vehCallsigns" />
+                      {{ t.value }} <span class="opt-count">({{ t.count }})</span>
+                    </label>
+                  </template>
+                </template>
+                <div class="dropdown-actions">
+                  <button @click="filters.vehCallsigns = vals(options.veh.callsigns)">All</button>
+                  <button @click="filters.vehCallsigns = []">None</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="clf-row clf-row-check">
-            <label class="clf-check">
-              <input type="checkbox" v-model="filters.vehNorraCrossing" />
-              Norra Crossings
-            </label>
+          <div class="clf-row clf-patria-row">
+            <span class="clf-row-lbl">Runways</span>
+            <div class="patria-toggle">
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehRunwayFilter === 'all' }]"  @click="filters.vehRunwayFilter = 'all'">All</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehRunwayFilter === 'only' }]" @click="filters.vehRunwayFilter = 'only'">Only</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehRunwayFilter === 'excl' }]" @click="filters.vehRunwayFilter = 'excl'">Excl.</button>
+            </div>
+          </div>
+          <div class="clf-row clf-patria-row">
+            <span class="clf-row-lbl">City Cross.</span>
+            <div class="patria-toggle">
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehCityFilter === 'all' }]"  @click="filters.vehCityFilter = 'all'">All</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehCityFilter === 'only' }]" @click="filters.vehCityFilter = 'only'">Only</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehCityFilter === 'excl' }]" @click="filters.vehCityFilter = 'excl'">Excl.</button>
+            </div>
+          </div>
+          <div class="clf-row clf-patria-row">
+            <span class="clf-row-lbl">Norra Cross.</span>
+            <div class="patria-toggle">
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehNorraFilter === 'all' }]"  @click="filters.vehNorraFilter = 'all'">All</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehNorraFilter === 'only' }]" @click="filters.vehNorraFilter = 'only'">Only</button>
+              <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.vehNorraFilter === 'excl' }]" @click="filters.vehNorraFilter = 'excl'">Excl.</button>
+            </div>
           </div>
         </div>
       </div>
@@ -409,7 +496,7 @@ export default {
     })
     const sidStyleFn  = makeProcedureStyleFn('rgba(0, 210, 210, 1)')
     const starStyleFn = makeProcedureStyleFn('rgba(255, 170, 0, 1)')
-    let currentBasemap = 'black'
+    let currentBasemap = 'lightgrey'
 
     const makeVfrStyleFn = (basemap) => {
       const color  = basemap === 'black' ? '#ffffff' : '#000000'
@@ -520,9 +607,10 @@ export default {
       arr:   { acTypes: [], runways: [], entryPoints: [] },
       ctr:   { acTypes: [] },
       other: { acTypes: [] },
+      veh:   { callsigns: [] },
     })
 
-    const enabled = ref({ dep: true, arr: true, ctr: true, veh: true, other: true })
+    const enabled = ref({ dep: true, arr: true, ctr: false, veh: false, other: false })
 
     const filters = ref({
       startDate: '', startTime: '00:00',
@@ -536,7 +624,11 @@ export default {
         others:       { show: true, color: '#cc00ff' },
         patriaFilter: 'all',
       },
-      vehTowTruck: false, vehCityCrossing: false, vehNorraCrossing: false,
+      vehFilterBadTracks: true,
+      vehCallsigns: [],
+      vehRunwayFilter: 'all',
+      vehCityFilter:  'all',
+      vehNorraFilter: 'all',
       otherAcTypes: [],
     })
 
@@ -567,6 +659,35 @@ export default {
       return [...sel.filter(v => !heliVals.includes(v)), ...heliVals]
     }
 
+    // Vehicle callsign grouping
+    const VEH_GROUPS = ['TR', 'AVI', 'MENZ', 'AMA', 'ATOS', 'BRV', 'RMS', 'SWK', 'SWEPORT', 'MAINT']
+    const collapsedVehGroups = ref(Object.fromEntries([...VEH_GROUPS, '__falt__', '__others__'].map(g => [g, true])))
+    const isNumericCallsign  = (v) => !/[A-Za-z]/.test(v)
+    const vehGroupItems    = (optList, prefix) => optList.filter(o => o.value.toUpperCase().startsWith(prefix.toUpperCase()))
+    const vehFaltItems     = (optList) => optList.filter(o => isNumericCallsign(o.value))
+    const vehOthersItems   = (optList) => optList.filter(o => !isNumericCallsign(o.value) && !VEH_GROUPS.some(g => o.value.toUpperCase().startsWith(g.toUpperCase())))
+    const vehGroupCount    = (optList, prefix) => vehGroupItems(optList, prefix).reduce((s, o) => s + o.count, 0)
+    const vehFaltCount     = (optList) => vehFaltItems(optList).reduce((s, o) => s + o.count, 0)
+    const vehOthersCount   = (optList) => vehOthersItems(optList).reduce((s, o) => s + o.count, 0)
+    const vehGroupAllSelected  = (sel, optList, prefix) => { const it = vehGroupItems(optList, prefix); return it.length > 0 && it.every(o => sel.includes(o.value)) }
+    const vehGroupSomeSelected = (sel, optList, prefix) => { const it = vehGroupItems(optList, prefix); return it.some(o => sel.includes(o.value)) && !it.every(o => sel.includes(o.value)) }
+    const vehFaltAllSelected   = (sel, optList) => { const it = vehFaltItems(optList); return it.length > 0 && it.every(o => sel.includes(o.value)) }
+    const vehFaltSomeSelected  = (sel, optList) => { const it = vehFaltItems(optList); return it.some(o => sel.includes(o.value)) && !it.every(o => sel.includes(o.value)) }
+    const vehOthersAllSelected  = (sel, optList) => { const it = vehOthersItems(optList); return it.length > 0 && it.every(o => sel.includes(o.value)) }
+    const vehOthersSomeSelected = (sel, optList) => { const it = vehOthersItems(optList); return it.some(o => sel.includes(o.value)) && !it.every(o => sel.includes(o.value)) }
+    function toggleVehGroup(sel, optList, prefix) {
+      const gv = vehGroupItems(optList, prefix).map(o => o.value)
+      return gv.every(v => sel.includes(v)) ? sel.filter(v => !gv.includes(v)) : [...sel.filter(v => !gv.includes(v)), ...gv]
+    }
+    function toggleVehFalt(sel, optList) {
+      const fv = vehFaltItems(optList).map(o => o.value)
+      return fv.every(v => sel.includes(v)) ? sel.filter(v => !fv.includes(v)) : [...sel.filter(v => !fv.includes(v)), ...fv]
+    }
+    function toggleVehOthers(sel, optList) {
+      const ov = vehOthersItems(optList).map(o => o.value)
+      return ov.every(v => sel.includes(v)) ? sel.filter(v => !ov.includes(v)) : [...sel.filter(v => !ov.includes(v)), ...ov]
+    }
+
     // Extract just the values from an options array
     const vals = (optList) => optList.map(o => o.value)
 
@@ -583,6 +704,7 @@ export default {
       options.value.arr   = { acTypes: data.arr.ac_types,  runways: data.arr.runways, entryPoints: data.arr.entry_points }
       options.value.ctr   = { acTypes: data.ctr.ac_types }
       options.value.other = { acTypes: data.other.ac_types }
+      options.value.veh   = { callsigns: data.veh?.callsigns ?? [] }
 
       if (resetSelections) {
         filters.value.depAcTypes     = vals(options.value.dep.acTypes)
@@ -593,6 +715,8 @@ export default {
         filters.value.arrEntryPoints = vals(options.value.arr.entryPoints)
         filters.value.ctrAcTypes     = vals(options.value.ctr.acTypes)
         filters.value.otherAcTypes   = vals(options.value.other.acTypes)
+        const othersSet = new Set(vehOthersItems(options.value.veh.callsigns).map(o => o.value))
+        filters.value.vehCallsigns = vals(options.value.veh.callsigns).filter(v => !othersSet.has(v))
       }
     }
 
@@ -601,7 +725,7 @@ export default {
 
     onMounted(async () => {
       // Initialise OpenLayers map
-      basemapLayer = createBasemapLayer('black')
+      basemapLayer = createBasemapLayer('lightgrey')
       olMap = new OlMap({
         target: mapContainer.value,
         layers: [basemapLayer],
@@ -687,6 +811,11 @@ export default {
             ctr_show_dfl:    f.ctrGroups.dfl.show,
             ctr_show_others: f.ctrGroups.others.show,
             other_ac:        csv(f.otherAcTypes),
+            veh_filter_bad_tracks: f.vehFilterBadTracks,
+            veh_cs:          csv(f.vehCallsigns),
+            veh_rwy_filter:  f.vehRunwayFilter,
+            veh_city_filter: f.vehCityFilter,
+            veh_norra_filter: f.vehNorraFilter,
           },
         })
         sectionCounts.value = data
@@ -753,6 +882,11 @@ export default {
         ctr_show_others:  g.others.show,
         ctr_others_color: g.others.color,
         ctr_patria_filter: g.patriaFilter,
+        veh_filter_bad_tracks: f.vehFilterBadTracks,
+        veh_cs:                csv(f.vehCallsigns),
+        veh_rwy_filter:        f.vehRunwayFilter,
+        veh_city_filter:       f.vehCityFilter,
+        veh_norra_filter:      f.vehNorraFilter,
       }
     }
 
@@ -800,6 +934,13 @@ export default {
       lfItems, otherItems, lfAllSelected, lfSomeSelected, lfCount, toggleLfGroup,
       ctrHeliItems, ctrNonHeliItems, ctrHeliAllSelected, ctrHeliSomeSelected, ctrHeliCount, toggleCtrHeliGroup,
       ctrSectionCount,
+      VEH_GROUPS, collapsedVehGroups,
+      vehGroupItems, vehFaltItems, vehOthersItems,
+      vehGroupCount, vehFaltCount, vehOthersCount,
+      vehGroupAllSelected, vehGroupSomeSelected,
+      vehFaltAllSelected, vehFaltSomeSelected,
+      vehOthersAllSelected, vehOthersSomeSelected,
+      toggleVehGroup, toggleVehFalt, toggleVehOthers,
       mapContainer, creatingMap, mapImageData, totalFlightCount,
       onLayerChange, onBasemapChange,
     }
@@ -1125,6 +1266,10 @@ export default {
   overflow-y: auto;
   padding: 3px 0;
 }
+.dropdown-menu--wide {
+  min-width: 180px;
+  max-height: 280px;
+}
 
 .dropdown-item {
   display: flex;
@@ -1157,8 +1302,22 @@ export default {
   padding-top: 0.28rem;
   padding-bottom: 0.28rem;
   letter-spacing: 0.3px;
+  cursor: default;
 }
 .dropdown-group-header:hover { background: #252540; }
+
+.group-collapse-toggle {
+  flex: 1;
+  cursor: pointer;
+}
+.group-chevron {
+  font-size: 0.55rem;
+  color: #666;
+  padding-left: 0.3rem;
+  cursor: pointer;
+  user-select: none;
+}
+.group-chevron:hover { color: #aaa; }
 
 .dropdown-item-lf {
   padding-left: 1.5rem;

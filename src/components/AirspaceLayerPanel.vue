@@ -181,7 +181,7 @@ export default {
     const rasExpanded = ref(false)
     const depMarkersExpanded = ref(false)
     const sidstarExpanded = ref(false)
-    const selectedBasemap = ref('black')
+    const selectedBasemap = ref('lightgrey')
 
     const layers = ref({
       ctr: {
