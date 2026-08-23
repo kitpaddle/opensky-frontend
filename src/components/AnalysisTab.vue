@@ -17,6 +17,13 @@
           <input type="date" v-model="filters.endDate" class="ctrl-input" />
           <input type="time" v-model="filters.endTime" class="ctrl-input ctrl-input-time" />
         </div>
+        <div class="ctrl-row">
+          <span class="ctrl-row-lbl">Style</span>
+          <div class="patria-toggle">
+            <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.blendMode === 'normal' }]" @click="filters.blendMode = 'normal'">Normal</button>
+            <button :class="['ptoggle-btn', { 'ptoggle-btn--active': filters.blendMode === 'glow' }]"   @click="filters.blendMode = 'glow'">Glow</button>
+          </div>
+        </div>
       </div>
 
       <!-- Loading state -->
@@ -615,6 +622,7 @@ export default {
     const filters = ref({
       startDate: '', startTime: '00:00',
       endDate:   '', endTime:   '23:59',
+      blendMode: 'normal',   // 'normal' (opacity) | 'glow' (brightness) — track rendering style
       depAcTypes: [], depRunways: [], depSids: [],
       arrAcTypes: [], arrRunways: [], arrEntryPoints: [],
       ctrAcTypes: [],
@@ -887,6 +895,7 @@ export default {
         veh_rwy_filter:        f.vehRunwayFilter,
         veh_city_filter:       f.vehCityFilter,
         veh_norra_filter:      f.vehNorraFilter,
+        blend_mode:            f.blendMode,
       }
     }
 
@@ -1056,6 +1065,7 @@ export default {
 }
 .mode-btn:hover { background: #2a2a45; color: #aaa; }
 .mode-btn--active { background: #667eea; color: #fff; }
+.mode-btn--active:hover { background: #7b8ff5; color: #fff; }
 
 .ctrl-run-btn {
   width: 100%;
@@ -1219,6 +1229,7 @@ export default {
 .ptoggle-btn:last-child { border-right: none; }
 .ptoggle-btn:hover { background: #2a2a45; color: #aaa; }
 .ptoggle-btn--active { background: #667eea; color: #fff; }
+.ptoggle-btn--active:hover { background: #7b8ff5; color: #fff; }
 
 .clf-sub {
   padding-left: 1.4rem;
