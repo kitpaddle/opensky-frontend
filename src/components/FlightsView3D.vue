@@ -307,12 +307,15 @@ export default {
       const mapType = selectedBasemap.value || 'black'
       console.log('[3D View] Creating basemap provider for:', mapType)
 
+      const cartoKey = import.meta.env.VITE_CARTO_API_KEY
+      const keyParam = cartoKey ? `?key=${encodeURIComponent(cartoKey)}` : ''
+
       try {
         if (mapType === 'lightgrey') {
           // Try CartoDB first, fall back to OSM
           try {
             return new Cesium.UrlTemplateImageryProvider({
-              url: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+              url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${keyParam}`,
               subdomains: ['a', 'b', 'c', 'd'],
               credit: '© OpenStreetMap contributors © CARTO',
             })
@@ -327,7 +330,7 @@ export default {
           // Black map (default)
           try {
             return new Cesium.UrlTemplateImageryProvider({
-              url: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+              url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${keyParam}`,
               subdomains: ['a', 'b', 'c', 'd'],
               credit: '© OpenStreetMap contributors © CARTO',
             })
@@ -555,8 +558,10 @@ export default {
               console.log('[3D View] Basemap missing, adding fallback...')
               viewer.value.imageryLayers.removeAll()
               try {
+                const fallbackCartoKey = import.meta.env.VITE_CARTO_API_KEY
+                const fallbackKeyParam = fallbackCartoKey ? `?key=${encodeURIComponent(fallbackCartoKey)}` : ''
                 const fallbackProvider = new Cesium.UrlTemplateImageryProvider({
-                  url: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                  url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${fallbackKeyParam}`,
                   subdomains: ['a', 'b', 'c', 'd'],
                   credit: '© OpenStreetMap contributors © CARTO',
                 })

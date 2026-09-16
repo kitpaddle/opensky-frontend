@@ -520,9 +520,11 @@ export default {
 
     const createBasemapLayer = (type) => {
       if (type === 'none') return null
+      const cartoKey = import.meta.env.VITE_CARTO_API_KEY
+      const keyParam = cartoKey ? `?key=${encodeURIComponent(cartoKey)}` : ''
       const url = type === 'black'
-        ? 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-        : 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'
+        ? `https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${keyParam}`
+        : `https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${keyParam}`
       return new TileLayer({ source: new XYZ({ url, attributions: '' }), zIndex: 0 })
     }
 

@@ -146,13 +146,15 @@ export default {
 
     // Create basemap tile layers
     const createBasemapLayer = (type) => {
+      const cartoKey = import.meta.env.VITE_CARTO_API_KEY
+      const keyParam = cartoKey ? `?key=${encodeURIComponent(cartoKey)}` : ''
       if (type === 'none') {
         return null  // No basemap, just dark grey background
       } else if (type === 'black') {
         // Black basemap using CartoDB
         return new TileLayer({
           source: new XYZ({
-            url: 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+            url: `https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${keyParam}`,
             attributions: '© OpenStreetMap contributors © CARTO',
           }),
           preload: 4,
@@ -163,7 +165,7 @@ export default {
         // Light grey basemap using CartoDB
         return new TileLayer({
           source: new XYZ({
-            url: 'https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+            url: `https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${keyParam}`,
             attributions: '© OpenStreetMap contributors © CARTO',
           }),
           preload: 4,
