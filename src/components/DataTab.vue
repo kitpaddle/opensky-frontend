@@ -37,11 +37,11 @@
         </div>
         <div class="kpi-card" style="--accent-color: #E91E63">
           <div class="kpi-value">{{ statistics.metadata.arr_taxi_wait_count || 0 }}</div>
-          <div class="kpi-label">Wait Count</div>
+          <div class="kpi-label">Wait Count (+2mins)</div>
         </div>
         <div class="kpi-card" style="--accent-color: #C2185B">
-          <div class="kpi-value">{{ ((statistics.metadata.arr_taxi_wait_total_sec || 0) / 60).toFixed(1) }}</div>
-          <div class="kpi-label">Wait Min</div>
+          <div class="kpi-value">{{ statistics.metadata.arr_taxi_wait_count ? (statistics.metadata.arr_taxi_wait_total_sec / statistics.metadata.arr_taxi_wait_count / 60).toFixed(1) : (0).toFixed(1) }}</div>
+          <div class="kpi-label">Average Wait (min)</div>
         </div>
         <div class="kpi-card" style="--accent-color: #4CAF50">
           <div class="kpi-value">{{ statistics.metadata.essa_vehicles }}</div>
