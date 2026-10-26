@@ -129,7 +129,7 @@
             <text v-for="t in chartXTicks" :key="'xl'+t.i"
               :x="cBarX(t.i) + cBarW / 2"
               :y="CH - CB + 13"
-              text-anchor="middle" font-size="8" fill="#bbb">{{ shortDate(t.date) }}</text>
+              text-anchor="middle" font-size="8" fill="#bbb">{{ t.text }}</text>
           </svg>
         </template>
       </div>
@@ -360,12 +360,35 @@ function fmtTick(v) {
   return Math.round(v).toString()
 }
 
+// Short ranges: a label every 7 days. Long ranges: one label per month,
+// on the first day present for that month (weekly labels overlap there).
 const chartXTicks = computed(() => {
-  const n = rangeData.value.length
-  return rangeData.value
-    .map((d, i) => ({ i, date: d.date }))
-    .filter(({ i }) => i % 7 === 0 || i === n - 1)
+  const days = rangeData.value
+  const n = days.length
+  if (n <= 90) {
+    return days
+      .map((d, i) => ({ i, date: d.date, text: shortDate(d.date) }))
+      .filter(({ i }) => i % 7 === 0 || i === n - 1)
+  }
+  const ticks = []
+  let prevMonth = null
+  days.forEach((d, i) => {
+    const month = d.date.slice(0, 7)
+    if (month === prevMonth) return
+    prevMonth = month
+    // A partial first month (e.g. only Dec 29–31) would collide with the next label
+    if (ticks.length === 1 && i - ticks[0].i < 10) ticks.pop()
+    const showYear = ticks.length === 0 || month.endsWith('-01')
+    ticks.push({ i, date: d.date, text: monthLabel(d.date, showYear) })
+  })
+  return ticks
 })
+
+function monthLabel(dateStr, showYear) {
+  const d = new Date(dateStr + 'T12:00:00Z')
+  const m = d.toLocaleDateString('en-GB', { month: 'short' })
+  return showYear ? `${m} ${dateStr.slice(0, 4)}` : m
+}
 </script>
 
 <style scoped>
