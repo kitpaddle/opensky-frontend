@@ -94,8 +94,10 @@
               <th @click="sortBy('callsign')" :class="{ sorted: sortKey === 'callsign' }">Callsign</th>
               <th @click="sortBy('ac_type')" :class="{ sorted: sortKey === 'ac_type' }">Type</th>
               <th @click="sortBy('start_time')" :class="{ sorted: sortKey === 'start_time' }">Start (UTC)</th>
+              <th @click="sortBy('gnd_track_quality')" :class="{ sorted: sortKey === 'gnd_track_quality' }" class="col-bool" title="Incomplete ground track: positions missing while moving on the ground">GND</th>
               <th @click="sortBy('is_essa_arr')" :class="{ sorted: sortKey === 'is_essa_arr' }" class="col-bool">ARR</th>
               <th @click="sortBy('arr_rwy')" :class="{ sorted: sortKey === 'arr_rwy' }">ARR RWY</th>
+              <th @click="sortBy('actual_landing_time')" :class="{ sorted: sortKey === 'actual_landing_time' }">ALDT</th>
               <th @click="sortBy('goaround_count')" :class="{ sorted: sortKey === 'goaround_count' }" class="col-num">G/A</th>
               <th @click="sortBy('init_arr_point')" :class="{ sorted: sortKey === 'init_arr_point' }">STAR</th>
               <th @click="sortBy('arr_runway_occupancy')" :class="{ sorted: sortKey === 'arr_runway_occupancy' }">ARR OCC</th>
@@ -105,6 +107,7 @@
               <th @click="sortBy('arrival_stand')" :class="{ sorted: sortKey === 'arrival_stand' }">ARR Stand</th>
               <th @click="sortBy('is_essa_dep')" :class="{ sorted: sortKey === 'is_essa_dep' }" class="col-bool">DEP</th>
               <th @click="sortBy('dep_rwy')" :class="{ sorted: sortKey === 'dep_rwy' }">DEP RWY</th>
+              <th @click="sortBy('actual_takeoff_time')" :class="{ sorted: sortKey === 'actual_takeoff_time' }">ATOT</th>
               <th @click="sortBy('sid')" :class="{ sorted: sortKey === 'sid' }">SID</th>
               <th @click="sortBy('departure_apron')" :class="{ sorted: sortKey === 'departure_apron' }">DEP Apron</th>
               <th @click="sortBy('departure_stand')" :class="{ sorted: sortKey === 'departure_stand' }">DEP Stand</th>
@@ -132,8 +135,10 @@
               <td class="col-callsign">{{ f.callsign || '—' }}</td>
               <td class="col-type">{{ f.ac_type || '—' }}</td>
               <td class="col-time">{{ fmtTime(f.start_time) }}</td>
+              <td class="col-bool"><span v-if="f.gnd_track_quality > 0" :class="['dot', f.gnd_track_quality > 1 ? 'dot-gnd-major' : 'dot-gnd-minor']" :title="gndTitle(f)"></span></td>
               <td class="col-bool"><span v-if="f.is_essa_arr" class="dot dot-arr"></span></td>
               <td class="col-rwy">{{ f.arr_rwy && f.arr_rwy !== 'UNKNOWN' ? f.arr_rwy : '—' }}</td>
+              <td class="col-time">{{ f.is_essa_arr ? fmtTime(f.actual_landing_time) : '—' }}</td>
               <td class="col-bool"><span v-if="f.goaround_count > 0" class="dot dot-ga"></span></td>
               <td class="col-sid">{{ f.init_arr_point || '—' }}</td>
               <td class="col-stat">{{ fmtSec(f.arr_runway_occupancy) }}</td>
@@ -143,6 +148,7 @@
               <td class="col-stand">{{ f.arrival_stand || '—' }}</td>
               <td class="col-bool"><span v-if="f.is_essa_dep" class="dot dot-dep"></span></td>
               <td class="col-rwy">{{ f.dep_rwy && f.dep_rwy !== 'UNKNOWN' ? f.dep_rwy : '—' }}</td>
+              <td class="col-time">{{ f.is_essa_dep ? fmtTime(f.actual_takeoff_time) : '—' }}</td>
               <td class="col-sid">{{ f.sid || '—' }}</td>
               <td class="col-stand">{{ f.departure_apron || '—' }}</td>
               <td class="col-stand">{{ f.departure_stand || '—' }}</td>
@@ -455,6 +461,12 @@ export default {
       return new Date(ts * 1000).toISOString().slice(11, 16)
     }
 
+    const gndTitle = (f) => {
+      const gap = Math.round(f.gnd_max_fix_gap_sec || 0)
+      return `Incomplete ground track: ${gap} s without a position while moving` +
+        (f.gnd_track_quality > 1 ? ' (major)' : ' (minor)')
+    }
+
     const fmtCtrTime = (f) => {
       if (!f.ctr_entry_time || !f.ctr_exit_time) return '—'
       return fmtSec(f.ctr_exit_time - f.ctr_entry_time)
@@ -705,7 +717,7 @@ export default {
     })
 
     return {
-      flights, filters, sortKey, sortDir, sortedFlights, sortBy, fmtSec, fmtTime, fmtCtrTime,
+      flights, filters, sortKey, sortDir, sortedFlights, sortBy, fmtSec, fmtTime, fmtCtrTime, gndTitle,
       cntJson, xrwyCount, rowClass,
       selectedFlight, selectFlight, mapEl,
       svgChart, chartColor,
@@ -957,6 +969,8 @@ export default {
 .dot-veh  { background: #4CAF50; }
 .dot-ga   { background: #FF9800; }
 .dot-wait { background: #E91E63; }
+.dot-gnd-minor { background: transparent; border: 2px solid #F44336; width: 6px; height: 6px; }
+.dot-gnd-major { background: #F44336; }
 
 .row-arr        { background: rgba(255, 193,   7, 0.04); }
 .row-dep        { background: rgba( 33, 150, 243, 0.04); }
